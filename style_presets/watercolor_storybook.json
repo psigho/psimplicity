@@ -1,0 +1,15 @@
+{
+    "name": "Watercolor Storybook",
+    "description": "Hand-painted storybook illustrations — Studio Ghibli backgrounds meets children's book art",
+    "art_style": "Hand-painted watercolor illustration with visible brush strokes, soft wet-on-wet blending, and delicate ink linework. Reminiscent of Studio Ghibli background art crossed with classic children's book illustration (Beatrix Potter, Quentin Blake).",
+    "color_palette": "Soft pastels with occasional vivid watercolor blooms — sage greens, sky blues, rose pinks, warm yellows. White paper showing through as highlights. Gentle tonal transitions.",
+    "mood_keywords": [
+        "gentle",
+        "nostalgic",
+        "dreamy",
+        "whimsical",
+        "tender"
+    ],
+    "quality_tags": "Traditional watercolor painting, visible brushstrokes, handmade texture, fine ink linework, illustration quality, paper texture visible, professional illustration.",
+    "negative_prompt": "photorealistic, 3D render, digital art, sharp edges, high contrast, dark moody, violent, horror, neon colors, AI artifacts, extra fingers, malformed hands, distorted faces, text overlays, watermarks, stock photo."
+}

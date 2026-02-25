@@ -1,0 +1,20 @@
+{
+    "name": "Brand Bible — Key Visuals",
+    "description": "Premium campaign poster layouts — luxury print advertisement design with brand typography, borders, and editorial composition. Generates poster-ready key visuals, not raw photographs.",
+    "art_style": "Luxury brand campaign poster design. This is a PRINT ADVERTISEMENT LAYOUT, not a raw photograph. The image must look like a finished poster or magazine ad with these mandatory design elements: (1) An elegant thin border or frame around the entire composition with inner margins. (2) The brand name or tagline rendered in premium serif or sans-serif typography, positioned in the top or bottom 20% of the poster. (3) Generous negative space zones — at least 30% of the canvas should be clean breathing room for text and branding. (4) The product is the hero subject, placed with intentional art direction — not centered generically but composed with editorial sophistication. (5) Muted, premium color grading — think Aesop, Oribe, or Le Labo campaign aesthetics. Warm earth tones, deep botanicals, matte finishes. (6) Portrait orientation (2:3 ratio). The final image should feel like it belongs in Vogue, Harper's Bazaar, or a luxury brand lookbook — a finished design asset, not an unprocessed photo.",
+    "color_palette": "Deep botanical greens (#2D5016, #4A7C59), warm amber golds (#C9A96E, #D4AF37), kraft naturals (#C4A882), cream whites (#F5F0E1, #FAF7F2), charcoal slate (#2D3436). Matte finish throughout — no glossy or saturated tones. Accent with one brand-specific color from Brand Bible. Avoid pure white, pure black, neons, and pastels.",
+    "mood_keywords": [
+        "premium",
+        "editorial",
+        "poster",
+        "campaign",
+        "luxury print ad",
+        "brand-forward",
+        "aspirational",
+        "typographic",
+        "framed",
+        "gallery-quality"
+    ],
+    "quality_tags": "Luxury print advertisement layout, campaign poster design, premium brand visual, elegant border frame with inner margins, brand typography overlay, serif or high-end sans-serif type, generous negative space for brand messaging, portrait poster orientation 2:3 ratio, editorial art direction, magazine-quality composition, intentional text zones, Aesop-level design sophistication, gallery-worthy framing, matte color grading, shallow depth of field f/1.8 on hero product, 4K resolution feel.",
+    "negative_prompt": "raw unframed photograph, full-bleed image without borders, no text or typography, stock photo feel, generic corporate, over-processed HDR, cartoon, anime, illustration, collage, comic panels, split frames, amateur photography, harsh flash, flat lighting, busy backgrounds, AI artifacts, extra fingers, malformed hands, distorted faces, cluttered composition, multiple focal points, watermarks, landscape orientation, centered generic placement."
+}

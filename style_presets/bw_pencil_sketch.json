@@ -1,0 +1,15 @@
+{
+    "name": "B&W Pencil Sketch",
+    "description": "Classic black-and-white cartoon pencil sketches — bold linework, crosshatching, editorial illustration feel",
+    "art_style": "Black and white cartoon pencil sketch with bold confident linework, expressive crosshatching for shading, and clean compositional framing. Reminiscent of editorial cartoon illustration, graphic novel ink work, and classic hand-drawn storyboard art. Strong contour lines with varied line weight for depth.",
+    "color_palette": "Strictly monochrome — pure black ink on white paper. Rich blacks, mid-tone graphite grays from crosshatching, stark white highlights where paper shows through. No color whatsoever.",
+    "mood_keywords": [
+        "bold",
+        "expressive",
+        "raw",
+        "editorial",
+        "hand-drawn"
+    ],
+    "quality_tags": "Professional pencil illustration, hand-drawn linework, crosshatch shading, editorial cartoon quality, sketch texture, graphite on paper, high contrast black and white, clean composition.",
+    "negative_prompt": "color, colorful, photorealistic, 3D render, digital painting, watercolor, pastel colors, neon, saturated, AI artifacts, extra fingers, malformed hands, distorted faces, text overlays, watermarks, blurry, low quality."
+}

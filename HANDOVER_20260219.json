@@ -1,0 +1,243 @@
+{
+    "handover": {
+        "created": "2026-02-19T04:47:00+05:00",
+        "conversation_id": "5615ce49-1afe-4991-bbda-8b1e93b3d49e",
+        "session_span": "2026-02-12 to 2026-02-19",
+        "project": "Psimplicity — AI Script-to-Image Pipeline",
+        "current_version": "v2.2.1",
+        "workspace": "E:\\Antigravity Projects\\script-to-image"
+    },
+    "project_overview": {
+        "description": "Paste a video script → get production-ready, AI quality-controlled images. Built for fast-turnaround commentary and philosophy videos.",
+        "tech_stack": [
+            "Python",
+            "Streamlit",
+            "Google Gemini API",
+            "OpenRouter API",
+            "OpenAI API"
+        ],
+        "entry_point": "streamlit run app.py",
+        "config": "config.json",
+        "env_file": ".env (contains GEMINI_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY)",
+        "architecture": {
+            "app.py": "Streamlit UI — 1600+ lines, session management, image grid, feedback system, collection",
+            "modules/orchestrator.py": "Pipeline controller — scene parsing → prompt building → image generation → critique loop",
+            "modules/scene_parser.py": "LLM breaks video scripts into structured scenes",
+            "modules/prompt_builder.py": "Scene → optimized image generation prompt with style presets and Story Bible",
+            "modules/image_provider.py": "Modular image generation (Gemini, Seedream 4.5, DALL-E 3, Imagen)",
+            "modules/art_director.py": "AI critique loop: 8-dimension scoring, 7.0 pass threshold, max 3 retries",
+            "modules/story_bible.py": "Character roster + visual DNA for cross-scene consistency",
+            "modules/feedback_loop.py": "Error Classifier (8 error types) + Prompt Surgeon for targeted retry fixes",
+            "modules/json_repair.py": "3-layer JSON recovery for broken AI responses",
+            "modules/gemini_llm.py": "Native Gemini SDK wrapper",
+            "style_presets/": "8 JSON style configs (watercolor, noir, cinematic, sketch, synthwave, anime, philosophy, pixar)"
+        }
+    },
+    "version_history": {
+        "v1.0": {
+            "date": "2026-01",
+            "codename": "Foundation",
+            "changes": [
+                "Core pipeline: Script Parser → Prompt Builder → Image Provider → Art Director → Orchestrator",
+                "7-dimension AI critique scoring with 7.0 pass threshold",
+                "Story Bible for character consistency",
+                "Streamlit UI with session management",
+                "8 built-in style presets",
+                "Per-image redo with optional guidance"
+            ]
+        },
+        "v2.0": {
+            "date": "2026-02-15",
+            "codename": "The Art Director Fix",
+            "headline": "Pass rate 50% → 100%, avg score 7.2 → 8.5, runtime 21min → 7min",
+            "changes": [
+                "Seedream 4.5 via OpenRouter as new image engine",
+                "Art Director max_tokens 1500 → 8192 (prevents JSON truncation)",
+                "Scoring expanded from 7 → 8 dimensions (added character_fidelity)",
+                "Removed broken Seedream round-robin fallback — single-provider architecture",
+                "Fixed scene parser list-vs-dict bug",
+                "Renamed from 'Ancap' → 'Psimplicity'"
+            ]
+        },
+        "v2.1": {
+            "date": "2026-02-18",
+            "codename": "Immune System",
+            "changes": [
+                "NEW: feedback_loop.py — Error Classifier (8 error types) + Prompt Surgeon",
+                "FIX: redo_scene() no longer mutates shared Scene objects (copy.deepcopy)",
+                "FIX: Critique failures get honest 0.0 instead of fake 6.0",
+                "FIX: Character matching uses word boundaries (re.search r'\\bAl\\b')",
+                "FIX: Story Bible persisted across redo calls",
+                "FIX: Duplicate _API_COOLDOWN override removed",
+                "QC report now includes typed_errors array per attempt"
+            ]
+        },
+        "v2.2": {
+            "date": "2026-02-18",
+            "codename": "Data-Driven",
+            "derived_from": "Analysis of 13 QC reports (80 scenes, 109 critiques)",
+            "changes": [
+                "Critique Retry Loop — retries critique call 2x before falling back to regeneration",
+                "3-layer JSON Recovery via json-repair library",
+                "Classifier thresholds raised: hard_fail→6, soft_fail→7",
+                "Story Bible prompt repositioned: CHARACTER LOCK + CONTINUITY MANDATE moved to top",
+                "Single-frame mandate: every prompt starts with 'SINGLE IMAGE FRAME'",
+                "Palette hex injection from story bible color_palette",
+                "User Feedback System: thumbs up/down on every image card, persisted to qc_report.json"
+            ]
+        },
+        "v2.2.1": {
+            "date": "2026-02-18",
+            "codename": "User Authority",
+            "changes": [
+                "User Override Collection: manual approval overrides AI score",
+                "Collect Approved button: gathers AI-passed + user-approved, excludes user-rejected",
+                "Gold 'USER PASS' badge on cards where user approved a failed image",
+                "Red 'USER ✗' badge on cards where user rejected a passed image",
+                "Override counter: +N user-approved, -N user-rejected",
+                "Collect All button retained as secondary option"
+            ]
+        }
+    },
+    "key_files_modified_this_session": {
+        "app.py": {
+            "lines_modified": [
+                {
+                    "range": "1398-1481",
+                    "what": "Replaced dual-button collection (Collect Passed + Collect All) with smart 3-tier system: Collect Approved respects user overrides"
+                },
+                {
+                    "range": "1569-1575",
+                    "what": "Score badge shows USER PASS (gold) for approved fails, USER ✗ (red) for rejected passes"
+                }
+            ],
+            "key_functions": {
+                "_save_user_feedback": "L747-809 — persists verdict + note to qc_report.json, recomputes summary stats",
+                "collection_logic": "L1398-1481 — approved_paths = AI passed (unless user rejected) + user approved fails",
+                "score_badge": "L1569-1575 — renders USER PASS / USER ✗ / PASS / WARN / FAIL badges"
+            }
+        }
+    },
+    "important_code_patterns": {
+        "collection_logic": {
+            "description": "How Collect Approved works",
+            "algorithm": [
+                "1. For each result/visual_result, get final_image_path",
+                "2. Check ai_passed = item.get('passed', False)",
+                "3. Check user_feedback = item.get('user_feedback')",
+                "4. If user_feedback exists: verdict=='approved' → include, verdict=='rejected' → exclude",
+                "5. If no user_feedback: include only if ai_passed"
+            ]
+        },
+        "badge_logic": {
+            "description": "How score badges render",
+            "rules": [
+                "user approved + AI failed → gold 'X.X/10 USER PASS'",
+                "user rejected + AI passed → red 'X.X/10 USER ✗'",
+                "AI passed, no review → green 'X.X/10 PASS'",
+                "score >= 5, AI failed → yellow 'X.X/10'",
+                "score < 5 → red 'X.X/10 FAIL'"
+            ]
+        }
+    },
+    "shared_agents_archive": {
+        "path": "H:\\My Drive\\Shared Agents\\_archive\\psimplicity",
+        "contents": {
+            "Psimplicity_v2.2.1_share.zip": "7.07 MB — shareable ZIP (no .env, no output, no .git)",
+            "project_v2.2.1/": "Full project source synced for laptop pickup",
+            "PATCH_NOTES_v2.2.1.md": "Complete changelog v1.0 → v2.2.1",
+            "PATCH_NOTES_v2.2.md": "QC-driven patch notes",
+            "PATCH_NOTES_v2.1.md": "Anti-hallucination update notes",
+            "PATCH_NOTES_v2.md": "Art Director Fix notes",
+            "HANDOVER_20260215.md": "Previous session handover",
+            "DESIGN_BRIEF.md": "Original design brief",
+            "analyze_qc.py": "QC report aggregation script",
+            "qc_analysis.txt": "Aggregated analysis of 13 QC reports"
+        }
+    },
+    "zip_shared": {
+        "path": "E:\\Antigravity Projects\\Psimplicity_v2.2.1_share.zip",
+        "size_mb": 7.07,
+        "excludes": [
+            ".env",
+            "credentials.env",
+            "output/",
+            ".git/",
+            "__pycache__/",
+            ".streamlit/",
+            "test_seedream.py"
+        ],
+        "includes": [
+            "All Python modules",
+            "app.py",
+            "config.json",
+            "style_presets/",
+            "heroes/",
+            "PATCH_NOTES.md",
+            "README.md",
+            "INSTALL.md",
+            "requirements.txt"
+        ],
+        "recipient_setup": [
+            "pip install -r requirements.txt",
+            "Create .env with GEMINI_API_KEY and optionally OPENROUTER_API_KEY",
+            "streamlit run app.py"
+        ]
+    },
+    "api_keys_location": {
+        "primary": "E:\\Antigravity Projects\\script-to-image\\.env",
+        "backup": "E:\\Antigravity Projects\\script-to-image\\auth\\credentials.env",
+        "keys": [
+            "GEMINI_API_KEY",
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY"
+        ],
+        "note": "Keys are NEVER included in the share ZIP"
+    },
+    "preset_agent_integration": {
+        "status": "In progress — previous conversation 63c1a4bb implemented PresetAgent",
+        "conversation_id": "63c1a4bb-999f-475b-9b9f-a179d3aa5178",
+        "what": "PresetAgent does dynamic prompt reshaping based on style presets for RAI-aware content generation"
+    },
+    "psimplicity_web": {
+        "path": "E:\\Antigravity Projects\\psimplicity-web",
+        "tech": "Vite + React + TypeScript",
+        "components": [
+            "Gallery.tsx",
+            "CallToAction.tsx",
+            "Interview.tsx",
+            "App.tsx"
+        ],
+        "style": "stitch.css",
+        "status": "Landing page / showcase site for Psimplicity — separate from the pipeline"
+    },
+    "portfolio_hub": {
+        "path": "E:\\Portfolio-Hub",
+        "case_studies": [
+            "psimplicity.md",
+            "sophist-studio.md",
+            "yakutia-channel.md",
+            "therapy-with-brown.md"
+        ],
+        "note": "User has these open — may be working on portfolio content"
+    },
+    "known_issues_and_todos": [
+        "Redo progress indicator — planned but not yet implemented",
+        "PresetAgent full pipeline integration — in progress from conversation 63c1a4bb",
+        "Consider upgrading critique model from Flash Preview to gemini-2.5-flash stable",
+        "json-repair is a pip dependency — added to requirements.txt"
+    ],
+    "user_preferences": {
+        "drives": {
+            "E:": "Active workspace — all development here",
+            "H:": "Google Drive — Shared Agents archive, sync target",
+            "K:": "Removable backup drive — NO projects, NO environments, backup only",
+            "C:": "System only — keep >5GB free"
+        },
+        "agent_config": "E:\\Antigravity Projects\\.agent\\GEMINI.md",
+        "language": "User communicates in English, sometimes Urdu",
+        "style": "Prefers concise, direct responses. Professional output. No over-engineering.",
+        "branding": "Intelligence Architects · Psio.io · Consciousness Interface"
+    },
+    "resume_instructions": "Feed this JSON to a new chat. The Psimplicity project is at E:\\Antigravity Projects\\script-to-image. Latest code is also synced to H:\\My Drive\\Shared Agents\\_archive\\psimplicity\\project_v2.2.1\\. The share ZIP is ready at E:\\Antigravity Projects\\Psimplicity_v2.2.1_share.zip. All patch notes are in the project root as PATCH_NOTES.md. The app runs via 'streamlit run app.py' on localhost:8501."
+}

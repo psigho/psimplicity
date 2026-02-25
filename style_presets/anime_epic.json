@@ -1,0 +1,15 @@
+{
+    "name": "Anime Epic",
+    "description": "High-production anime — Attack on Titan / Jujutsu Kaisen level visual intensity",
+    "art_style": "High-budget Japanese anime production, dynamic action lines, sakuga-quality key frames. Studio MAPPA / ufotable-tier rendering with intense lighting effects, volumetric fog, and razor-sharp character silhouettes.",
+    "color_palette": "High contrast darks with vivid accent colors — electric blues, crimson reds, neon purples against deep black backgrounds. Occasional warm amber for emotional scenes.",
+    "mood_keywords": [
+        "intense",
+        "heroic",
+        "dramatic",
+        "kinetic",
+        "emotional"
+    ],
+    "quality_tags": "Anime key frame, sakuga quality, cinematic widescreen, studio-quality cel shading, dynamic camera angle, volumetric lighting, detailed background art.",
+    "negative_prompt": "3D render, photorealistic, western cartoon, chibi, low effort, flat coloring, sketch, rough draft, blurry, low quality, AI artifacts, extra fingers, distorted anatomy, text overlays, watermarks, generic stock look."
+}

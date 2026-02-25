@@ -1,0 +1,15 @@
+{
+    "name": "Pixar / DreamWorks",
+    "description": "Premium 3D animation — approachable, warm, and emotionally rich like Pixar/DreamWorks features",
+    "art_style": "High-end 3D animated feature film, Pixar-quality rendering with subsurface scattering on skin, expressive character design, warm global illumination, carefully art-directed environments. Think Inside Out 2 meets How to Train Your Dragon.",
+    "color_palette": "Vibrant but tasteful — warm oranges, sky blues, soft greens, candy pinks. Rich shadows with bounced color. Sunset golds for emotional moments.",
+    "mood_keywords": [
+        "warm",
+        "magical",
+        "heartfelt",
+        "whimsical",
+        "inviting"
+    ],
+    "quality_tags": "Pixar-quality 3D render, subsurface scattering, global illumination, feature film production value, expressive character design, cinematic lighting, detailed environments.",
+    "negative_prompt": "flat shading, low poly, uncanny valley, realistic human, anime, 2D, sketch, blurry, dark moody, horror, violent, AI artifacts, extra fingers, malformed hands, distorted faces, text overlays, watermarks."
+}

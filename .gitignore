@@ -1,0 +1,31 @@
+# Secrets - NEVER commit
+n8n-vertex.json
+*.json.bak
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Output
+output/
+
+# Environment
+.env
+.venv/
+
+# Archives
+*.zip
+
+# Test files (dev only)
+test_*.py
+
+# Old internal docs (dev only)
+HANDOVER.md
+HANDOVER_*.md
+PATCH_NOTES.md
+PATCH_NOTES_20*.md
+TODO_UI.md
+DESIGN_BRIEF.md
+INSTALL.md
