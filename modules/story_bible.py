@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Dict, Optional
 
-from .json_repair import extract_json
+from .llm_gateway import LLMGateway
 
 logger = logging.getLogger(__name__)
 
@@ -49,76 +49,32 @@ Respond with ONLY the JSON object, no wrapping."""
 
 def generate_story_bible(
     script: str,
+    llm_gateway: LLMGateway,
     art_style: str = "",
     color_palette: str = "",
     mood_keywords: str = "",
-    llm_client=None,
-    model: str = "google/gemini-3-flash-preview",
-    gemini_client=None,
 ) -> Dict:
-    """Generate a story bible from the script using one LLM call.
-
-    Args:
-        script: Full script text
-        art_style: From style preset
-        color_palette: From style preset
-        mood_keywords: From style preset
-        llm_client: OpenAI-compatible client (fallback)
-        model: Model to use for generation (fallback)
-        gemini_client: Native GeminiLLM instance (primary)
-
-    Returns:
-        Dict with visual_identity, recurring_elements, color_mandate,
-        atmosphere, and continuity_rules.
     """
-    if llm_client is None and gemini_client is None:
-        logger.warning("No LLM client provided — returning empty story bible")
-        return _empty_bible()
+    Parses the script to identify main characters, key themes, and visual rules.
+    Used by the Art Director to verify consistency across scenes.
+    """
+    logger.info("Generating Story Bible...")
 
-    prompt = STORY_BIBLE_PROMPT.format(
+    system_prompt = STORY_BIBLE_PROMPT.format(
         script=script[:3000],  # Cap to avoid token overflow
         art_style=art_style or "not specified",
         color_palette=color_palette or "not specified",
         mood_keywords=mood_keywords or "not specified",
     )
 
-    # Strategy: Native Gemini SDK (primary) → OpenAI-compat (fallback)
-    bible = None
-
-    # 1. Try native Gemini SDK first
-    if gemini_client:
-        try:
-            logger.info("Generating story bible with native Gemini SDK...")
-            bible = gemini_client.generate_json(
-                prompt=prompt,
-                max_tokens=1500,
-                temperature=0.4,
-            )
-        except Exception as e:
-            logger.warning(f"Gemini native story bible failed: {e}. Falling back to OpenAI-compat...")
-
-    # 2. Fallback: OpenAI-compat
-    if bible is None and llm_client is not None:
-        try:
-            logger.info(f"Generating story bible with {model} (OpenAI-compat)...")
-            response = llm_client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.4,
-                max_tokens=1500,
-            )
-            raw = response.choices[0].message.content
-            bible = extract_json(raw)
-        except Exception as e:
-            logger.error(f"Story bible generation failed: {e}")
-            return _empty_bible()
-
-    # If still None after all attempts, return empty
-    if bible is None:
-        logger.warning("All story bible attempts failed — using empty bible")
+    try:
+        bible = llm_gateway.generate_json(
+            prompt=script,
+            system_instruction=system_prompt,
+            role="parser"
+        )
+    except Exception as e:
+        logger.error(f"Story bible generation failed: {e}")
         return _empty_bible()
 
     # Validate required fields

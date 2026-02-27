@@ -23,7 +23,7 @@ from .prompt_builder import PromptBuilder, StylePreset
 from .image_provider import ImageProvider, create_provider
 from .art_director import ArtDirector, CritiqueResult
 from .story_bible import generate_story_bible
-from .gemini_llm import GeminiLLM
+from .llm_gateway import LLMGateway
 from .feedback_loop import process_feedback, FeedbackClassifier, PromptSurgeon
 
 logger = logging.getLogger(__name__)
@@ -133,98 +133,17 @@ class Orchestrator:
         self.output_folder = Path(config.get("output", {}).get("folder", "output"))
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
-        # Initialize components — prefer direct OpenAI, fall back to OpenRouter
-        oai_cfg = config.get("openai", {})
-        or_cfg = config.get("openrouter", {})
-
-        def _resolve(val: str) -> str:
-            """Expand ${VAR} patterns to actual env values."""
-            if not val:
-                return val
-            return re.sub(r'\$\{(\w+)\}', lambda m: os.environ.get(m.group(1), ''), val)
-
-        # Pick the best available LLM credentials
-        # Priority: Gemini direct → OpenAI direct → OpenRouter
-        oai_key = _resolve(oai_cfg.get("api_key", "")) or os.environ.get("OPENAI_API_KEY", "")
-        or_key = _resolve(or_cfg.get("api_key", "")) or os.environ.get("OPENROUTER_API_KEY", "")
-        gemini_key = os.environ.get("GEMINI_API_KEY", "")
-
-        if gemini_key:
-            llm_key = gemini_key
-            llm_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
-            parser_model = "gemini-3-flash-preview"
-            critic_model = "gemini-3-flash-preview"
-            logger.info("Using direct Gemini API for parser & critic")
-        elif oai_key:
-            llm_key = oai_key
-            llm_base = "https://api.openai.com/v1"
-            parser_model = oai_cfg.get("parser_model", "gpt-4.1-mini")
-            critic_model = oai_cfg.get("critic_model", "gpt-4.1-mini")
-            logger.info("Using direct OpenAI API for parser & critic")
-        elif or_key:
-            llm_key = or_key
-            llm_base = or_cfg.get("base_url", "https://openrouter.ai/api/v1")
-            parser_model = or_cfg.get("parser_model", "openai/gpt-4o")
-            critic_model = or_cfg.get("critic_model", "openai/gpt-4o")
-            logger.info("Using OpenRouter API for parser & critic")
-        else:
-            raise ValueError("No API key found. Set GEMINI_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY in .env.")
-
-        # Apply sidebar overrides if provided
-        gemini_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
-
-        def _resolve_model_route(model_name):
-            """Route model to correct API endpoint.
-            Strips 'google/' prefix so sidebar selections go direct to Gemini."""
-            # google/gemini-3-flash-preview → gemini-3-flash-preview (direct Gemini)
-            if model_name.startswith("google/gemini-") and gemini_key:
-                clean = model_name.replace("google/", "")
-                return clean, gemini_key, gemini_base
-            if model_name.startswith("gemini-") and gemini_key:
-                return model_name, gemini_key, gemini_base
-            if model_name.startswith("gpt-") and oai_key:
-                return model_name, oai_key, "https://api.openai.com/v1"
-            # Everything else → OpenRouter
-            return model_name, or_key or llm_key, or_cfg.get("base_url", "https://openrouter.ai/api/v1")
-
-        if parser_model_override:
-            parser_model, llm_key_parser, llm_base_parser = _resolve_model_route(parser_model_override)
-            logger.info(f"Parser model override: {parser_model} → {llm_base_parser}")
-        else:
-            llm_key_parser, llm_base_parser = llm_key, llm_base
-
-        if critic_model_override:
-            critic_model, llm_key_critic, llm_base_critic = _resolve_model_route(critic_model_override)
-            logger.info(f"Critic model override: {critic_model} → {llm_base_critic}")
-        else:
-            llm_key_critic, llm_base_critic = llm_key, llm_base
-
-        # ── Native Gemini SDK — primary for all LLM calls ──
-        self.gemini_client = None
-        if gemini_key:
-            try:
-                self.gemini_client = GeminiLLM(
-                    api_key=gemini_key,
-                    model="gemini-3-flash-preview",
-                )
-                logger.info("✅ Native Gemini SDK initialized as PRIMARY LLM provider")
-            except Exception as e:
-                logger.warning(f"Failed to init native Gemini SDK: {e}. Using OpenAI-compat only.")
-
-        # Build parser with native Gemini primary, OpenAI-compat fallback
-        parser_fallback_key = oai_key if llm_base_parser != "https://api.openai.com/v1" else None
-        self.parser = SceneParser(
-            api_key=llm_key_parser,
-            base_url=llm_base_parser,
-            model=parser_model,
-            fallback_api_key=parser_fallback_key,
-            fallback_base_url="https://api.openai.com/v1",
-            fallback_model="gpt-4.1-mini" if parser_fallback_key else None,
-            gemini_client=self.gemini_client,
+        # 1. Initialize Unified LLM Gateway
+        self.llm_gateway = LLMGateway(
+            config=config,
+            parser_override=parser_model_override,
+            critic_override=critic_model_override
         )
 
-        # Image provider — use override key or let factory auto-detect
-        # Image provider — use override key or let factory auto-detect
+        # 2. Build parser with gateway
+        self.parser = SceneParser(llm_gateway=self.llm_gateway)
+
+        # 3. Image provider — use override key or let factory auto-detect
         if image_provider_key:
             # Build a filtered config with only the selected provider
             img_config = {image_provider_key: config[image_provider_key]}
@@ -233,6 +152,11 @@ class Orchestrator:
             img_config = config.copy()
 
         # Expand env vars for Gemini API Key
+        def _resolve(val: str) -> str:
+            if not val:
+                return val
+            return re.sub(r'\$\{(\w+)\}', lambda m: os.environ.get(m.group(1), ''), val)
+            
         if "gemini_api_key" in img_config:
             gak = img_config["gemini_api_key"].copy()
             gak["api_key"] = _resolve(gak.get("api_key", ""))
@@ -241,30 +165,19 @@ class Orchestrator:
         self.image_provider = create_provider(img_config)
 
         # ── Provider chain (single provider — no round-robin) ─────────────
-        # Seedream (ByteDance) was previously auto-injected as a fallback here,
-        # but it drops all visual context (style bible, character fidelity)
-        # producing images that look nothing like the rest of the series.
-        # Keeping a single-provider chain preserves stylistic coherence.
         self._provider_chain = [self.image_provider]
 
-        # Build critic with native Gemini primary, OpenAI-compat fallback
-        critic_fallback_key = oai_key if llm_base_critic != "https://api.openai.com/v1" else None
+        # 4. Build critic with gateway
         self.art_director = ArtDirector(
-            api_key=llm_key_critic,
-            base_url=llm_base_critic,
-            model=critic_model,
+            llm_gateway=self.llm_gateway,
             pass_threshold=self.pass_threshold,
             max_retries=self.max_retries,
-            fallback_api_key=critic_fallback_key,
-            fallback_base_url="https://api.openai.com/v1",
-            fallback_model="gpt-4.1-mini" if critic_fallback_key else None,
-            gemini_client=self.gemini_client,
         )
 
         logger.info("Orchestrator initialized")
-        logger.info(f"  Parser model: {parser_model}")
-        logger.info(f"  Critic model: {critic_model}")
-        logger.info(f"  Primary LLM: {'Native Gemini SDK' if self.gemini_client else 'OpenAI-compat'}")
+        logger.info(f"  Parser model: {self.llm_gateway.parser_model}")
+        logger.info(f"  Critic model: {self.llm_gateway.critic_model}")
+        logger.info(f"  Primary LLM Base: {self.llm_gateway.primary_base}")
         logger.info(f"  Image provider: {self.image_provider.name()}")
         logger.info(f"  Provider chain: {' → '.join(p.name() for p in self._provider_chain)}")
         logger.info(f"  Pass threshold: {self.pass_threshold}/10")
@@ -322,6 +235,21 @@ class Orchestrator:
             target_scenes=target_scenes if target_scenes > 0 else None,
             status_callback=_parse_status,
         )
+
+        if not scenes:
+            logger.error("Pipeline aborted: No scenes parsed.")
+            return PipelineReport(run_folder=str(run_folder),
+                                  total_scenes=0, passed_scenes=0,
+                                  failed_scenes=[], overall_time=0.0)
+
+        # Persist parsed scenes to disk for redos
+        scenes_file = run_folder / "scenes.json"
+        try:
+            with open(scenes_file, "w", encoding="utf-8") as f:
+                json.dump([s.to_dict() for s in scenes], f, indent=2)
+            logger.info(f"Persisted {len(scenes)} parsed scenes to {scenes_file}")
+        except Exception as e:
+            logger.warning(f"Failed to persist scenes.json: {e}")
         total_scenes = len(scenes)
 
         # Persist parsed scenes for redo after restart
@@ -341,32 +269,25 @@ class Orchestrator:
         try:
             story_bible = generate_story_bible(
                 script=script,
+                llm_gateway=self.llm_gateway,
                 art_style=style.art_style,
                 color_palette=style.color_palette,
-                mood_keywords=", ".join(style.mood_keywords) if style.mood_keywords else "",
-                llm_client=self.parser.client,
-                model=self.parser.model,
-                gemini_client=self.gemini_client,
+                mood_keywords=", ".join(style.mood_keywords) if style.mood_keywords else ""
             )
             self.story_bible = story_bible  # Persist for redo_scene()
+            
+            # Persist story bible to disk
+            bible_file = run_folder / "story_bible.json"
+            try:
+                with open(bible_file, "w", encoding="utf-8") as f:
+                    json.dump(story_bible, f, indent=2)
+            except Exception as e:
+                logger.warning(f"Failed to persist story_bible.json: {e}")
+                
         except Exception as e:
-            logger.warning(f"Story bible failed with primary ({self.parser.model}): {e}")
-            if self.parser.fallback_client:
-                if progress_callback:
-                    progress_callback(0, 0, f"Story bible fallback → {self.parser.fallback_model}...", None)
-                story_bible = generate_story_bible(
-                    script=script,
-                    art_style=style.art_style,
-                    color_palette=style.color_palette,
-                    mood_keywords=", ".join(style.mood_keywords) if style.mood_keywords else "",
-                    llm_client=self.parser.fallback_client,
-                    model=self.parser.fallback_model,
-                    gemini_client=self.gemini_client,
-                )
-            else:
-                logger.warning("No fallback for story bible — using empty bible")
-                story_bible = {}
-                self.story_bible = story_bible
+            logger.error(f"Story bible generation failed completely: {e}")
+            story_bible = {"characters": []}
+            self.story_bible = story_bible
 
         # ── Merge Brand Bible visual DNA into story_bible (if provided) ──
         if brand_bible_data:
@@ -640,21 +561,11 @@ class Orchestrator:
                         f"PROMPT:\n{base_prompt}"
                     )
                     try:
-                        if self.gemini_client:
-                            from google.genai import types
-                            response = self.gemini_client.client.models.generate_content(
-                                model=self.gemini_client.model,
-                                contents=scrub_instructions,
-                                config=types.GenerateContentConfig(temperature=0.7)
-                            )
-                            prompt = response.text.strip()
-                        else:
-                            response = self.art_director.client.chat.completions.create(
-                                model=self.art_director.model,
-                                messages=[{"role": "user", "content": scrub_instructions}],
-                                temperature=0.7,
-                            )
-                            prompt = response.choices[0].message.content.strip()
+                        prompt = self.llm_gateway.generate_text(
+                            prompt=scrub_instructions,
+                            role="critic",
+                            temp=0.7
+                        )
                         negative_prompt = base_negative
                         logger.info("Successfully scrubbed prompt via LLM.")
                     except Exception as e:
@@ -666,6 +577,7 @@ class Orchestrator:
                         critique_result=last_critique,
                         prompt=base_prompt,
                         negative_prompt=base_negative,
+                        llm_gateway=self.llm_gateway,
                         story_bible=story_bible,
                         style_description=style_description,
                     )
@@ -876,6 +788,23 @@ class Orchestrator:
         Returns:
             Updated SceneResult
         """
+        # Attempt to load scenes from disk if not provided
+        if not scenes and run_folder:
+            scenes_file = Path(run_folder) / "scenes.json"
+            if scenes_file.exists():
+                try:
+                    with open(scenes_file, "r", encoding="utf-8") as f:
+                        scenes_data = json.load(f)
+                        from .scene_parser import Scene
+                        scenes = [Scene(**sd) for sd in scenes_data]
+                    logger.info(f"Loaded {len(scenes)} scenes from {scenes_file}")
+                except Exception as e:
+                    logger.error(f"Failed to load scenes.json from {run_folder}: {e}")
+            else:
+                raise ValueError("No scenes provided and scenes.json not found in run folder.")
+        elif not scenes:
+             raise ValueError("No scenes provided and no run folder specified.")
+
         # Deepcopy to prevent mutating the shared scene list
         scene = copy.deepcopy(scenes[scene_number - 1])
 
@@ -898,8 +827,20 @@ class Orchestrator:
 
         total_visuals = len(scene.get_visuals())
 
-        # Use the persisted story bible from the last run() call
-        story_bible = getattr(self, 'story_bible', None) or {}
+        # Use the persisted story bible from the last run() call or load from disk
+        story_bible = getattr(self, 'story_bible', None)
+        if not story_bible and run_folder:
+             bible_file = Path(run_folder) / "story_bible.json"
+             if bible_file.exists():
+                 try:
+                     with open(bible_file, "r", encoding="utf-8") as f:
+                         story_bible = json.load(f)
+                     logger.info(f"Loaded story bible from {bible_file}")
+                 except Exception as e:
+                     logger.error(f"Failed to load story_bible.json from {run_folder}: {e}")
+                     story_bible = {}
+        
+        story_bible = story_bible or {}
 
         return self._process_scene(
             scene=scene,

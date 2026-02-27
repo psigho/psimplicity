@@ -232,6 +232,7 @@ class PromptSurgeon:
         prompt: str,
         negative_prompt: str,
         errors: List[TypedError],
+        llm_gateway: "LLMGateway",
         story_bible: Optional[Dict] = None,
         style_description: str = "",
     ) -> Tuple[str, str]:
@@ -287,17 +288,59 @@ class PromptSurgeon:
             if error.detail:
                 revision_notes.append(f"[{error.type}] {error.detail}")
 
-        # Dedupe
-        negative_additions = list(dict.fromkeys(negative_additions))
-        positive_additions = list(dict.fromkeys(positive_additions))
+        # Build context for the LLM
+        error_context = ""
+        for i, error in enumerate(errors, 1):
+            error_context += f"{i}. [{error.type}] {error.detail}\n"
+            
+        continuity_context = ""
+        if story_bible:
+            char_block = self._build_character_block(story_bible)
+            cont_block = self._build_continuity_block(story_bible)
+            if char_block:
+                continuity_context += f"\nCharacter Descriptions:\n{char_block}\n"
+            if cont_block:
+                continuity_context += f"\nContinuity Rules:\n{cont_block}\n"
+                
+        if style_description:
+            continuity_context += f"\nStyle Mandate:\n{style_description}\n"
 
-        # Build enhanced prompts
-        enhanced_prompt = prompt
-        if positive_additions:
-            enhanced_prompt += "\n\n" + ". ".join(positive_additions) + "."
-        if revision_notes:
-            enhanced_prompt += "\n\nART DIRECTOR REVISION:\n" + "\n".join(revision_notes)
+        # The system instruction for the prompt surgeon
+        system_instruction = (
+            "You are an expert AI Image Generation Prompt Surgeon.\n"
+            "Your job is to rewrite an image generation prompt to fix specific errors identified by an Art Director.\n"
+            "Do NOT just append instructions to the end of the prompt. Instead, organically weave the fixes into "
+            "the core description so it flows naturally as a single, cohesive image prompt.\n\n"
+            "RULES:\n"
+            "1. Maintain the core subject and action of the original prompt.\n"
+            "2. Address EVERY error listed in the Art Director Feedback.\n"
+            "3. If characters are mentioned in the feedback or the prompt, ensure their visual descriptions match the "
+            "provided Character Descriptions precisely.\n"
+            "4. Adhere to the Continuity Rules and Style Mandate.\n"
+            "5. Return ONLY the completely rewritten positive prompt. No explanations, no markdown formatting."
+        )
 
+        user_prompt = (
+            f"ORIGINAL PROMPT:\n{prompt}\n\n"
+            f"ART DIRECTOR FEEDBACK (Errors to fix):\n{error_context}\n"
+            f"{continuity_context}\n"
+            "Rewrite the ORIGINAL PROMPT to fix the errors organically."
+        )
+
+        logger.info(f"🔧 Prompt Surgeon applying {len(errors)} fix(es) via LLM rewrite...")
+        
+        try:
+            enhanced_prompt = llm_gateway.generate_text(
+                prompt=user_prompt,
+                system_instruction=system_instruction,
+                role="parser", # Use faster model for surgery
+                temp=0.7
+            )
+        except Exception as e:
+            logger.error(f"Prompt Surgeon LLM rewrite failed: {e}. Falling back to original prompt.")
+            enhanced_prompt = prompt
+
+        # We still construct the negative prompt via string concatenation as before
         enhanced_negative = negative_prompt
         if negative_additions:
             neg_str = ", ".join(negative_additions)
@@ -305,9 +348,6 @@ class PromptSurgeon:
                 enhanced_negative += ", " + neg_str
             else:
                 enhanced_negative = neg_str
-
-        logger.info(f"🔧 Prompt Surgeon applied {len(errors)} fix(es): "
-                   f"[+{len(positive_additions)} positive, -{len(negative_additions)} negative]")
 
         return enhanced_prompt, enhanced_negative
 
@@ -342,6 +382,7 @@ def process_feedback(
     critique_result,
     prompt: str,
     negative_prompt: str,
+    llm_gateway: "LLMGateway",
     story_bible: Optional[Dict] = None,
     style_description: str = "",
 ) -> Tuple[str, str, List[TypedError]]:
@@ -369,6 +410,7 @@ def process_feedback(
         prompt=prompt,
         negative_prompt=negative_prompt,
         errors=errors,
+        llm_gateway=llm_gateway,
         story_bible=story_bible,
         style_description=style_description,
     )

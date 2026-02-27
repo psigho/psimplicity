@@ -110,35 +110,11 @@ Respond in JSON:
 
 Be HONEST and SPECIFIC. Do not inflate scores. A score of 5 means "mediocre". 7 means "good enough". 9-10 means "excellent". Garbled or hallucinated text should ALWAYS score below 4 on text_accuracy. Character appearance contradicting the Story Bible roster should ALWAYS score below 4 on character_fidelity."""
 
-    def __init__(self, api_key: str, base_url: str = None, model: str = None,
-                 pass_threshold: float = 7.0, max_retries: int = 3,
-                 fallback_api_key: str = None, fallback_base_url: str = None,
-                 fallback_model: str = None, gemini_client=None):
-        self.client = openai.OpenAI(
-            api_key=api_key,
-            base_url=base_url or "https://openrouter.ai/api/v1",
-            timeout=60.0,
-            max_retries=0,  # Don't retry — let our fallback handler take over
-        )
-        self.model = model or "openai/gpt-4o"
+    def __init__(self, llm_gateway, pass_threshold: float = 7.0, max_retries: int = 3):
+        self.llm = llm_gateway
+        self.model = self.llm.critic_model
         self.pass_threshold = pass_threshold
         self.max_retries = max_retries
-
-        # Native Gemini SDK — primary path (bypasses broken OpenAI-compat shim)
-        self.gemini_client = gemini_client
-        if gemini_client:
-            logger.info("Critic: native Gemini SDK configured as PRIMARY")
-
-        # Fallback for when Gemini/OpenRouter is down
-        self.fallback_client = None
-        self.fallback_model = fallback_model
-        if fallback_api_key and fallback_model:
-            self.fallback_client = openai.OpenAI(
-                api_key=fallback_api_key,
-                base_url=fallback_base_url or "https://api.openai.com/v1",
-                timeout=120.0,
-            )
-            logger.info(f"Critic fallback configured: {fallback_model}")
 
     def critique(self, image_path: str, scene_title: str, scene_description: str,
                  mood: str = "", key_elements: list = None,
@@ -184,69 +160,20 @@ Be HONEST and SPECIFIC. Do not inflate scores. A score of 5 means "mediocre". 7 
         logger.info(f"Art Director reviewing: {Path(image_path).name}")
 
         # ── Strategy: Native Gemini SDK (primary) → OpenAI-compat (fallback) ──
-        result = None
-        raw = ""
+        logger.info(f"Critiquing image with {self.model}...")
 
-        # 1. Try native Gemini SDK — reliable vision + JSON
-        if self.gemini_client:
-            try:
-                logger.info("Critic using native Gemini SDK")
-                result = self.gemini_client.critique_image(
-                    prompt=prompt,
-                    image_path=image_path,
-                    max_tokens=8192,
-                    temperature=0.3,
-                )
-                raw = json.dumps(result)
-            except Exception as e:
-                logger.warning(f"Gemini native critique failed: {e}. Falling back to OpenAI-compat...")
-
-        # 2. Fallback: OpenAI-compatible API
-        if result is None:
-            with open(image_path, "rb") as f:
-                image_data = base64.b64encode(f.read()).decode("utf-8")
-            suffix = Path(image_path).suffix.lower()
-            media_type = "image/png" if suffix == ".png" else "image/jpeg"
-
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{media_type};base64,{image_data}"
-                            }
-                        }
-                    ]
-                }
-            ]
-            call_kwargs = dict(
-                messages=messages,
-                response_format={"type": "json_object"},
-                max_tokens=8192,
-                temperature=0.3,
+        try:
+            parsed = self.llm.critique_image(
+                prompt=prompt,
+                image_path=image_path,
+                system_instruction="" # System context is woven into the main prompt for ArtDirector
             )
+        except Exception as e:
+            logger.error(f"Image critique failed: {e}")
+            raise RuntimeError(f"Art Director critique failed: {str(e)}") from e
 
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model, **call_kwargs
-                )
-            except (openai.APIStatusError, openai.APITimeoutError, openai.APIConnectionError) as e:
-                if self.fallback_client and self.fallback_model:
-                    logger.warning(f"Critic primary ({self.model}) failed: {e}. "
-                                   f"Falling back to {self.fallback_model}")
-                    response = self.fallback_client.chat.completions.create(
-                        model=self.fallback_model, **call_kwargs
-                    )
-                else:
-                    raise
-
-            raw = response.choices[0].message.content
-            result = _extract_json(raw)
-
-        scores = result.get("scores", {})
+        # Extract scores map
+        scores = parsed.get("scores", {})
         avg = sum(scores.values()) / len(scores) if scores else 0
 
         # Hard gate: relevance must pass independently — a pretty image
@@ -264,9 +191,9 @@ Be HONEST and SPECIFIC. Do not inflate scores. A score of 5 means "mediocre". 7 
             scores=scores,
             average_score=round(avg, 1),
             passed=passed,
-            feedback=result.get("feedback", {}),
-            summary=result.get("summary", ""),
-            raw_response=raw
+            feedback=parsed.get("feedback", {}),
+            summary=parsed.get("summary", ""),
+            raw_response=json.dumps(parsed)
         )
 
         status = "✅ PASS" if passed else "❌ FAIL"

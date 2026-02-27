@@ -119,32 +119,9 @@ RULES:
 - key_elements must come FROM the script, not from imagination
 - If the script is abstract/philosophical, illustrate the CONCRETE EXAMPLES it uses, not the abstract concepts"""
 
-    def __init__(self, api_key: str, base_url: str = None, model: str = None,
-                 fallback_api_key: str = None, fallback_base_url: str = None,
-                 fallback_model: str = None, gemini_client=None):
-        self.client = openai.OpenAI(
-            api_key=api_key,
-            base_url=base_url or "https://openrouter.ai/api/v1",
-            timeout=60.0,
-            max_retries=0,  # Don't retry — let our fallback handler take over
-        )
-        self.model = model or "openai/gpt-4o"
-
-        # Native Gemini SDK — primary path
-        self.gemini_client = gemini_client
-        if gemini_client:
-            logger.info("Parser: native Gemini SDK configured as PRIMARY")
-
-        # Fallback: auto-switch when primary model times out
-        self.fallback_client = None
-        self.fallback_model = fallback_model
-        if fallback_api_key and fallback_model:
-            self.fallback_client = openai.OpenAI(
-                api_key=fallback_api_key,
-                base_url=fallback_base_url or "https://api.openai.com/v1",
-                timeout=120.0,
-            )
-            logger.info(f"Parser fallback configured: {fallback_model}")
+    def __init__(self, llm_gateway):
+        self.llm = llm_gateway
+        self.model = self.llm.parser_model
 
     def parse(self, script: str, target_scenes: int = None,
               status_callback=None) -> List[Scene]:
@@ -183,80 +160,19 @@ RULES:
 
     def _call_parser(self, system: str, script: str,
                      status_callback=None) -> List[Scene]:
-        """Call the LLM and parse the response into Scene objects.
-        Strategy: Native Gemini SDK → OpenAI-compat primary → fallback."""
-
-        content = None
-
-        # 1. Try native Gemini SDK first
-        if self.gemini_client:
-            try:
-                if status_callback:
-                    status_callback("Parsing with native Gemini SDK...")
-                logger.info("Parser using native Gemini SDK")
-                result = self.gemini_client.generate_json(
-                    prompt=script,
-                    system=system,
-                    max_tokens=12000,
-                    temperature=0.7,
-                )
-                # result may be a dict {"scenes": [...]} or a bare list [...]
-                if isinstance(result, list):
-                    scenes_data = result
-                else:
-                    scenes_data = result.get("scenes", result)
-                    if not isinstance(scenes_data, list):
-                        scenes_data = [scenes_data]
-                return self._build_scenes(scenes_data)
-            except Exception as e:
-                logger.warning(f"Gemini native parser failed: {e}. Falling back to OpenAI-compat...")
-
-        # 2. OpenAI-compat path
-        def _do_call(client, model, label=""):
-            if status_callback:
-                status_callback(f"Parsing with {model}...{label}")
-            logger.info(f"Calling {model} for scene parsing...{label}")
-            return client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": script}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.7,
-                max_tokens=12000
-            )
-
-        # Try primary model
+        """Call the LLM Gateway and parse the response into Scene objects."""
+        if status_callback:
+            status_callback(f"Parsing with {self.model}...")
+            
         try:
-            response = _do_call(self.client, self.model)
-        except (openai.APITimeoutError, openai.APIConnectionError) as e:
-            logger.warning(f"Primary parser ({self.model}) failed: {e}")
-            # Auto-fallback if configured
-            if self.fallback_client and self.fallback_model:
-                logger.info(f"Falling back to {self.fallback_model}...")
-                try:
-                    response = _do_call(
-                        self.fallback_client, self.fallback_model,
-                        label=f" (fallback — {self.model} timed out)"
-                    )
-                except Exception as e2:
-                    raise RuntimeError(
-                        f"Both parsers failed. Primary ({self.model}): timeout. "
-                        f"Fallback ({self.fallback_model}): {e2}"
-                    )
-            else:
-                raise RuntimeError(
-                    f"Parser timed out ({self.model}) and no fallback configured. "
-                    "Try switching to GPT-4.1 Mini in the sidebar."
-                )
-        except openai.AuthenticationError:
-            raise RuntimeError(
-                "API key rejected. Check your OpenRouter or OpenAI API key in the sidebar."
+            parsed = self.llm.generate_json(
+                prompt=script,
+                system_instruction=system,
+                role="parser"
             )
-
-        content = response.choices[0].message.content
-        parsed = extract_json(content)
+        except Exception as e:
+            logger.error(f"SceneParser parsing failed: {e}")
+            raise RuntimeError(f"Scene extraction failed using {self.model}: {str(e)}") from e
 
         # parsed may be a dict {"scenes": [...]} or a bare list [...]
         if isinstance(parsed, list):
