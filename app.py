@@ -1818,13 +1818,9 @@ with col_clear:
     st.button("🗑 Clear", on_click=_clear_all)
 
 # ── Stale pipeline guard ────────────────────────────────────────────────────
-# Pipeline runs synchronously. If pipeline_running=True but Generate was NOT
-# just clicked, the pipeline died mid-rerun (user changed a widget).
-# Reset the flag so the Generate button becomes clickable again.
-if st.session_state.pipeline_running and not generate_btn:
-    st.session_state.pipeline_running = False
-    st.toast("⚠️ Pipeline was interrupted — Generate button re-enabled.", icon="🔄")
-    st.rerun()
+# Removed stale pipeline guard because we use the callback to set pipeline_running
+# and then rely on that state below.
+
 
 
 # ── Easter Egg Loading Messages ─────────────────────────────────────────────
@@ -1874,12 +1870,14 @@ def _pick_easter_egg(scene_num=0, total=0):
 
 
 # ── Pipeline Execution ──────────────────────────────────────────────────────
-if generate_btn and (not script_text or not script_text.strip()):
+if st.session_state.pipeline_running and (not script_text or not script_text.strip()):
     st.warning("⚠️ Paste a script above before generating.")
-if generate_btn and not selected_preset:
+    st.session_state.pipeline_running = False
+if st.session_state.pipeline_running and not selected_preset:
     st.warning("⚠️ Select a style preset in the sidebar.")
+    st.session_state.pipeline_running = False
 
-if generate_btn and script_text and selected_preset:
+if st.session_state.pipeline_running and script_text and selected_preset:
 
     # ── Instant feedback: show status banner immediately ──
     status_placeholder = st.empty()
