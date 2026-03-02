@@ -1922,13 +1922,6 @@ if generate_btn and script_text and selected_preset:
             "model": "bytedance-seed/seedream-4.5",
         }
 
-    orchestrator = Orchestrator(
-        config,
-        parser_model_override=selected_parser_model,
-        critic_model_override=selected_critic_model,
-        image_provider_key=selected_image_config_key
-    )
-    
     # ── Progress area with easter eggs ──
     status_placeholder.empty()
     progress_placeholder = st.empty()
@@ -1965,6 +1958,13 @@ if generate_btn and script_text and selected_preset:
             _last_egg_time[0] = now
 
     try:
+        orchestrator = Orchestrator(
+            config,
+            parser_model_override=selected_parser_model,
+            critic_model_override=selected_critic_model,
+            image_provider_key=selected_image_config_key
+        )
+        
         with st.spinner("Running pipeline..."):
             report = orchestrator.run(
                 script=script_text,

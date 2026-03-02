@@ -46,10 +46,15 @@ if not exist ".env" (
     echo  3. Click "Create API Key"
     echo  4. Copy the key
     echo.
-    set /p GEMINI_KEY="  Paste your API key here: "
+    set GEMINI_KEY=
+    set /p GEMINI_KEY="  Paste your API key here (or press Enter to skip): "
     
-    :: Write key to .env (overwrite the template)
-    > ".env" echo GEMINI_API_KEY=%GEMINI_KEY%
+    :: Write key to .env (append safely)
+    if not "%GEMINI_KEY%"=="" (
+        echo GEMINI_API_KEY=%GEMINI_KEY%>> ".env"
+    ) else (
+        echo GEMINI_API_KEY=>> ".env"
+    )
     echo.
     echo  [OK] API key saved to .env
     echo.

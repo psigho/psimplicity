@@ -106,3 +106,17 @@ Captures **human ground truth** alongside AI Art Director scores. Enables:
 ```
 pip install json-repair
 ```
+
+---
+
+## 🚨 Hotfix: API Key Loading Safety (v2.2.2)
+
+### `.env` File Creation (`START.bat`)
+
+**Before:** The setup script forcefully overwrote the `.env` template using `> ".env"`. If a user pressed Enter without pasting a key, the file was wiped empty, losing all template structure.
+**After:** Safely appends (`>>`) the API key strings to `.env` using delayed expansion-safe syntax, preserving existing template comments and placeholders.
+
+### Orchestrator Initialization (`app.py`)
+
+**Before:** The backend `Orchestrator` initialized outside the main Streamlit interface `try..except` block. A missing `.env` key raised a ValueError that instantly crashed the app, preventing users from accessing the UI to input their keys.
+**After:** `Orchestrator` instantiation moved safely inside the `try..except` pipeline block. Missing keys now gracefully surface as UI errors, allowing the app to stay alive and the user to enter their credentials.
