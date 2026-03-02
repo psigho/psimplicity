@@ -64,6 +64,9 @@ def get_api_key():
             for line in f:
                 if line.startswith("GEMINI_API_KEY="):
                     return line.strip().split("=", 1)[1]
+    # Hardcoded keys removed for public release
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your-openai-api-key")
+    REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "your-replicate-api-token")
     # Try environment variable
     return os.environ.get("GEMINI_API_KEY")
 
