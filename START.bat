@@ -51,9 +51,10 @@ echo.
 set GEMINI_KEY=
 set /p GEMINI_KEY="  Paste your API key here (or press Enter to skip): "
 
-:: Write key to .env by replacing the empty placeholder
+:: Write key to .env securely without fragile powershell string parsing
 if not "%GEMINI_KEY%"=="" (
-    powershell -Command "(Get-Content .env) -replace '^GEMINI_API_KEY=.*', 'GEMINI_API_KEY=%GEMINI_KEY%' | Set-Content .env"
+    echo.>> .env
+    echo GEMINI_API_KEY=%GEMINI_KEY%>> .env
 )
 
 echo.
