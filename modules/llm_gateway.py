@@ -42,12 +42,14 @@ class LLMGateway:
         self.config = config
         
         # 1. Resolve Credentials
-        oai_cfg = config.get("openai", {})
         or_cfg = config.get("openrouter", {})
         
-        oai_key = _resolve_env(oai_cfg.get("api_key", "")) or os.environ.get("OPENAI_API_KEY", "")
         or_key = _resolve_env(or_cfg.get("api_key", "")) or os.environ.get("OPENROUTER_API_KEY", "")
         gemini_key = os.environ.get("GEMINI_API_KEY", "")
+        
+        # Store for model routing
+        self._or_key = or_key
+        self._or_cfg = or_cfg
         
         # 2. Determine Primary Framework
         if gemini_key:
@@ -56,27 +58,21 @@ class LLMGateway:
             default_parser = "gemini-3.1-pro-preview"
             default_critic = "gemini-2.5-flash"
             logger.info("Gateway: Using direct Gemini API")
-        elif oai_key:
-            self.primary_key = oai_key
-            self.primary_base = "https://api.openai.com/v1"
-            default_parser = oai_cfg.get("parser_model", "gpt-4.1-mini")
-            default_critic = oai_cfg.get("critic_model", "gpt-4.1-mini")
-            logger.info("Gateway: Using direct OpenAI API")
         elif or_key:
             self.primary_key = or_key
             self.primary_base = or_cfg.get("base_url", "https://openrouter.ai/api/v1")
-            default_parser = or_cfg.get("parser_model", "openai/gpt-4o")
-            default_critic = or_cfg.get("critic_model", "openai/gpt-4o")
+            default_parser = or_cfg.get("parser_model", "google/gemini-3.1-pro-preview")
+            default_critic = or_cfg.get("critic_model", "google/gemini-2.5-flash")
             logger.info("Gateway: Using OpenRouter API")
         else:
-            raise ValueError("No API key found. Set GEMINI_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY in .env.")
+            raise ValueError("No API key found. Set GEMINI_API_KEY or OPENROUTER_API_KEY in .env.")
 
         # 3. Resolve Models (with sidebar overrides)
         self.parser_model, self._parser_key, self._parser_base = self._resolve_model_route(
-            parser_override or default_parser, gemini_key, oai_key, or_key, or_cfg
+            parser_override or default_parser, gemini_key, or_key, or_cfg
         )
         self.critic_model, self._critic_key, self._critic_base = self._resolve_model_route(
-            critic_override or default_critic, gemini_key, oai_key, or_key, or_cfg
+            critic_override or default_critic, gemini_key, or_key, or_cfg
         )
 
         # 4. Initialize Core Clients
@@ -88,19 +84,19 @@ class LLMGateway:
             except Exception as e:
                 logger.warning(f"Failed to init native Gemini SDK: {e}")
 
-        # OpenAI compatible clients (lazy loaded if needed)
+        # OpenAI-compatible clients for OpenRouter (lazy loaded)
         self._oai_clients = {}
 
-    def _resolve_model_route(self, model_name: str, gemini_key: str, oai_key: str, or_key: str, or_cfg: dict) -> Tuple[str, str, str]:
+    def _resolve_model_route(self, model_name: str, gemini_key: str, or_key: str, or_cfg: dict) -> Tuple[str, str, str]:
         """Route model to correct API endpoint.
         
-        Priority: Native Gemini SDK > Direct OpenAI > OpenRouter fallback.
-        When falling back to OpenRouter, bare 'gemini-*' IDs get auto-prefixed with 'google/'.
+        Path 1: Native Gemini SDK (preferred for gemini-* models when GEMINI_API_KEY exists)
+        Path 2: OpenRouter (for everything else, or gemini models without native key)
         """
         gemini_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
         or_base = or_cfg.get("base_url", "https://openrouter.ai/api/v1")
         
-        # Strip google/ prefix for native Gemini routing
+        # Detect Gemini models (bare or with google/ prefix)
         is_gemini_model = model_name.startswith("gemini-") or model_name.startswith("google/gemini-")
         bare_gemini_name = model_name.replace("google/", "") if model_name.startswith("google/") else model_name
         
@@ -108,19 +104,14 @@ class LLMGateway:
         if is_gemini_model and gemini_key:
             return bare_gemini_name, gemini_key, gemini_base
         
-        # Path 2: OpenAI direct (for gpt-* models)
-        if model_name.startswith("gpt-") and oai_key:
-            return model_name, oai_key, "https://api.openai.com/v1"
-        
-        # Path 3: OpenRouter fallback (for everything else, or gemini without native key)
-        # Auto-prefix google/ for bare gemini model names going through OpenRouter
-        if is_gemini_model and or_key:
+        # Path 2: OpenRouter (for everything, with auto google/ prefix for Gemini models)
+        if is_gemini_model:
             or_model_name = f"google/{bare_gemini_name}"
             logger.info(f"Routing {model_name} → OpenRouter as {or_model_name}")
-            return or_model_name, or_key, or_base
+            return or_model_name, or_key or self.primary_key, or_base
         
-        # Path 4: Generic fallback — use whatever key we have
-        return model_name, or_key or oai_key or self.primary_key, or_base
+        # Non-Gemini models always go through OpenRouter
+        return model_name, or_key or self.primary_key, or_base
 
     def _get_oai_client(self, api_key: str, base_url: str) -> openai.OpenAI:
         """Get or create an OpenAI client for a specific endpoint."""
