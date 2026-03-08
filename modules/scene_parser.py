@@ -140,7 +140,60 @@ RULES:
             )
             logger.info(f"Target scene count: {target_scenes}")
 
-        scenes = self._call_parser(system, script, status_callback=status_callback)
+        # --- Chunking Logic ---
+        # Split script into ~1000 word chunks to prevent Gemini output token truncation
+        words = script.split()
+        chunk_size = 1000
+        chunks = [" ".join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
+        
+        all_scenes = []
+        scene_counter = 1
+        
+        # Determine target scenes per chunk if a total target was provided
+        if target_scenes and target_scenes > 0:
+            base_target = max(1, target_scenes // len(chunks))
+            remainder = target_scenes % len(chunks)
+        else:
+            base_target = 0
+            remainder = 0
+        
+        for idx, chunk_text in enumerate(chunks):
+            chunk_target = base_target + (1 if idx < remainder else 0)
+            
+            # Build specific system prompt for this chunk
+            chunk_system = self.SYSTEM_PROMPT
+            if chunk_target > 0:
+                chunk_system += (
+                    f"\n\nCRITICAL REQUIREMENT: You MUST split this script chunk into EXACTLY {chunk_target} scenes."
+                    f" Distribute the script content evenly across all {chunk_target} scenes."
+                    f" Your output JSON must contain exactly {chunk_target} objects in the 'scenes' array."
+                    f" START NUMBERING FROM {scene_counter}."
+                )
+            else:
+                chunk_system += f"\n\nSTART NUMBERING FROM {scene_counter}."
+                
+            if status_callback:
+                status_callback(f"Parsing script chunk {idx+1}/{len(chunks)} with {self.model}...")
+                
+            chunk_scenes = self._call_parser(chunk_system, chunk_text, status_callback=None)
+            
+            # Validation retry for this chunk
+            if chunk_target > 0 and len(chunk_scenes) != chunk_target:
+                logger.warning(f"Chunk {idx+1} parser returned {len(chunk_scenes)} scenes but target was {chunk_target}. Retrying...")
+                retry_system = chunk_system + (
+                    f"\n\nYOU PREVIOUSLY RETURNED {len(chunk_scenes)} SCENES. THIS IS WRONG."
+                    f" I NEED EXACTLY {chunk_target} SCENES. START NUMBERING FROM {scene_counter}."
+                )
+                chunk_scenes = self._call_parser(retry_system, chunk_text, status_callback=None)
+            
+            # Fix scene numbers sequentially just in case the LLM ignored the instruction
+            for scene in chunk_scenes:
+                scene.scene_number = scene_counter
+                scene_counter += 1
+                
+            all_scenes.extend(chunk_scenes)
+            
+        scenes = all_scenes
 
         # Validation: retry once if scene count doesn't match target
         if target_scenes and target_scenes > 0 and len(scenes) != target_scenes:

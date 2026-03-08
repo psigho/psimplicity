@@ -53,8 +53,8 @@ class LLMGateway:
         if gemini_key:
             self.primary_key = gemini_key
             self.primary_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
-            default_parser = "gemini-3-flash-preview"
-            default_critic = "gemini-3-flash-preview"
+            default_parser = "gemini-2.5-pro"
+            default_critic = "gemini-2.5-pro"
             logger.info("Gateway: Using direct Gemini API")
         elif oai_key:
             self.primary_key = oai_key
