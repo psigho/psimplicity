@@ -11,6 +11,15 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 from PIL import Image
+from PIL import Image
+import re
+import os
+
+def _resolve_env(val: str) -> str:
+    """Expand ${VAR} patterns to actual env values."""
+    if not val:
+        return val
+    return re.sub(r'\$\{(\w+)\}', lambda m: os.environ.get(m.group(1), ''), val)
 
 logger = logging.getLogger(__name__)
 
@@ -482,15 +491,15 @@ def create_provider(config: dict) -> ImageProvider:
     if "seedream" in config:
         cfg = config["seedream"]
         return SeedreamProvider(
-            api_key=cfg["api_key"],
-            base_url=cfg.get("base_url", "https://openrouter.ai/api/v1"),
+            api_key=_resolve_env(cfg.get("api_key", "")),
+            base_url=_resolve_env(cfg.get("base_url", "https://openrouter.ai/api/v1")),
             model=cfg.get("model", "bytedance-seed/seedream-4.5"),
         )
 
     # ── API Key mode (simple — no service account needed) ─────────────
     if "gemini_api_key" in config:
         cfg = config["gemini_api_key"]
-        api_key = cfg.get("api_key", "")
+        api_key = _resolve_env(cfg.get("api_key", ""))
         engine = cfg.get("engine", "gemini-image")  # "gemini-image" or "imagen-3"
 
         if not api_key:
@@ -525,7 +534,7 @@ def create_provider(config: dict) -> ImageProvider:
             region=cfg.get("region", "us-central1")
         )
     elif "dalle" in config:
-        return DallEProvider(api_key=config["dalle"]["api_key"])
+        return DallEProvider(api_key=_resolve_env(config["dalle"].get("api_key", "")))
     else:
         raise ValueError("No valid image provider found in config. "
                          "Set a GEMINI_API_KEY or configure a provider in the sidebar.")
