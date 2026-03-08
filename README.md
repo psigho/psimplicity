@@ -40,18 +40,32 @@ After every image is generated, an AI Art Director scores it across **8 dimensio
 
 ---
 
-## Quick Start (5 minutes)
+## Quick Start (1 minute)
 
-### 1. Prerequisites
+### ⚡ 1-Click Windows Installer (Recommended)
+
+Open PowerShell and paste this command:
+
+```powershell
+irm https://raw.githubusercontent.com/psigho/psimplicity/master/install.ps1 | iex
+```
+
+*This will automatically install Python/Git (if missing), download the app, and launch it!*
+
+---
+
+### Manual Installation (Advanced)
+
+#### 1. Prerequisites
 
 - **Python 3.10+** — [Download Python](https://www.python.org/downloads/)
 - **Git** — [Download Git](https://git-scm.com/downloads)
 
-### 2. Clone & Install
+#### 2. Clone & Install
 
 ```bash
-git clone <your-repo-url>
-cd script-to-image
+git clone https://github.com/psigho/psimplicity.git
+cd psimplicity
 pip install -r requirements.txt
 ```
 
