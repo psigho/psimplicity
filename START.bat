@@ -47,17 +47,13 @@ echo  2. Sign in with Google
 echo  3. Click "Create API Key"
 echo  4. Copy the key
 echo.
-echo  [IMPORTANT INSTRUCTION]
-echo  Once the app opens in your browser, look for the "Configuration" 
-echo  menu on the left side of the screen. Paste your key there and
-echo  click "Save Configuration"!
-echo.
+
 set GEMINI_KEY=
 set /p GEMINI_KEY="  Paste your API key here (or press Enter to skip): "
 
 :: Write key to .env by replacing the empty placeholder
 if not "%GEMINI_KEY%"=="" (
-    python -c "import os; lines=open('.env').read().replace('GEMINI_API_KEY=', 'GEMINI_API_KEY=' + os.environ.get('GEMINI_KEY', '')); open('.env', 'w').write(lines)"
+    powershell -Command "(Get-Content .env) -replace '^GEMINI_API_KEY=.*', 'GEMINI_API_KEY=%GEMINI_KEY%' | Set-Content .env"
 )
 
 echo.
