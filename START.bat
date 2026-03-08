@@ -49,12 +49,11 @@ if not exist ".env" (
     set GEMINI_KEY=
     set /p GEMINI_KEY="  Paste your API key here (or press Enter to skip): "
     
-    :: Write key to .env (append safely)
+    :: Write key to .env by replacing the empty placeholder
     if not "%GEMINI_KEY%"=="" (
-        echo GEMINI_API_KEY=%GEMINI_KEY%>> ".env"
-    ) else (
-        echo GEMINI_API_KEY=>> ".env"
+        python -c "import os; lines=open('.env').read().replace('GEMINI_API_KEY=', 'GEMINI_API_KEY=' + os.environ.get('GEMINI_KEY', '')); open('.env', 'w').write(lines)"
     )
+    
     echo.
     echo  [OK] API key saved to .env
     echo.
