@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class GeminiLLM:
     """Native Gemini SDK wrapper for reliable JSON generation."""
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-pro"):
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
         self.client = genai.Client(api_key=api_key)
         self.model = model
         logger.info(f"GeminiLLM initialized: model={model}")
