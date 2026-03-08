@@ -88,10 +88,7 @@ echo  Keep this window open while using the app.
 echo  Press Ctrl+C here to stop.
 echo.
 
-:: Force open browser (in case Streamlit doesn't)
-start "" /min cmd /c "timeout /t 3 >nul && start http://localhost:8501 && exit"
-
-:: Let Streamlit run (waits until server is ready)
-python -m streamlit run app.py --server.port 8501
+:: Let Streamlit run and automatically open the browser on an available port
+python -m streamlit run app.py
 
 pause
