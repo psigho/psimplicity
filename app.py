@@ -19,8 +19,8 @@ import streamlit as st
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env file
-load_dotenv()
+# Load .env file (override existing OS variables to prioritize our .env file)
+load_dotenv(override=True)
 from modules.orchestrator import Orchestrator
 
 # Configure logging
