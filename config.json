@@ -2,8 +2,8 @@
     "openrouter": {
         "api_key": "${OPENROUTER_API_KEY}",
         "base_url": "https://openrouter.ai/api/v1",
-        "parser_model": "anthropic/claude-sonnet-4",
-        "critic_model": "anthropic/claude-sonnet-4"
+        "parser_model": "google/gemini-3.1-pro-preview",
+        "critic_model": "google/gemini-2.5-flash"
     },
     "openai": {
         "api_key": "${OPENAI_API_KEY}",

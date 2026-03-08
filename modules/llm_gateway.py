@@ -92,15 +92,35 @@ class LLMGateway:
         self._oai_clients = {}
 
     def _resolve_model_route(self, model_name: str, gemini_key: str, oai_key: str, or_key: str, or_cfg: dict) -> Tuple[str, str, str]:
-        """Route model to correct API endpoint."""
+        """Route model to correct API endpoint.
+        
+        Priority: Native Gemini SDK > Direct OpenAI > OpenRouter fallback.
+        When falling back to OpenRouter, bare 'gemini-*' IDs get auto-prefixed with 'google/'.
+        """
         gemini_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
-        if model_name.startswith("google/gemini-") and gemini_key:
-            return model_name.replace("google/", ""), gemini_key, gemini_base
-        if model_name.startswith("gemini-") and gemini_key:
-            return model_name, gemini_key, gemini_base
+        or_base = or_cfg.get("base_url", "https://openrouter.ai/api/v1")
+        
+        # Strip google/ prefix for native Gemini routing
+        is_gemini_model = model_name.startswith("gemini-") or model_name.startswith("google/gemini-")
+        bare_gemini_name = model_name.replace("google/", "") if model_name.startswith("google/") else model_name
+        
+        # Path 1: Native Gemini SDK (preferred for gemini-* models)
+        if is_gemini_model and gemini_key:
+            return bare_gemini_name, gemini_key, gemini_base
+        
+        # Path 2: OpenAI direct (for gpt-* models)
         if model_name.startswith("gpt-") and oai_key:
             return model_name, oai_key, "https://api.openai.com/v1"
-        return model_name, or_key or self.primary_key, or_cfg.get("base_url", "https://openrouter.ai/api/v1")
+        
+        # Path 3: OpenRouter fallback (for everything else, or gemini without native key)
+        # Auto-prefix google/ for bare gemini model names going through OpenRouter
+        if is_gemini_model and or_key:
+            or_model_name = f"google/{bare_gemini_name}"
+            logger.info(f"Routing {model_name} → OpenRouter as {or_model_name}")
+            return or_model_name, or_key, or_base
+        
+        # Path 4: Generic fallback — use whatever key we have
+        return model_name, or_key or oai_key or self.primary_key, or_base
 
     def _get_oai_client(self, api_key: str, base_url: str) -> openai.OpenAI:
         """Get or create an OpenAI client for a specific endpoint."""

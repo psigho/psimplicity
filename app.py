@@ -1157,7 +1157,8 @@ with st.sidebar:
 
         # --- Parser Model ---
         parser_list = available.get("parsers", [
-            {"id": "google/gemini-3-flash-preview", "label": "Gemini 3 Flash ⚡", "tier": "fast"},
+            {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro 👑", "tier": "premium"},
+            {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash ⚡", "tier": "fast"},
         ])
         # Build display labels with tier badges
         _tier_badges = {"fast": "⚡", "balanced": "⚖️", "premium": "💎"}
@@ -1199,8 +1200,8 @@ with st.sidebar:
 
         # --- Image Generator ---
         img_list = available.get("image_generators", [
-            {"id": "gemini-image", "label": "Nano Banana Pro 🍌", "config_key": "gemini_image"},
-            {"id": "imagen-3", "label": "Imagen 3.0 🎨", "config_key": "imagen"},
+            {"id": "gemini-image", "label": "Nano Banana 2 🍌🍌", "config_key": "gemini_image"},
+            {"id": "imagen-4", "label": "Imagen 4 🎨", "config_key": "imagen"},
         ])
         img_labels = [g["label"] for g in img_list]
         img_idx = st.selectbox(
@@ -1861,6 +1862,34 @@ _EASTER_EGGS = [
     "⚡ Zapping neurons — almost there…",
     "🫧 Blowing pixel bubbles into shape…",
     "🧊 Freezing the perfect frame…",
+    # ── Round 3: Saboor — Gym × Anime Arc ──
+    "🏋️ Saboor just deadlifted Scene {n} into existence…",
+    "⚔️ Saboor activated Solo Leveling mode — Scene {n} is S-Rank…",
+    "💪 Saboor says 'lightweight baby' — rendering Scene {n}…",
+    "🐉 Saboor's shadow army is generating pixels for Scene {n}…",
+    "🔥 Saboor hit a new PR — Scene {n} just got swole…",
+    "👑 Arise. Saboor summoned Scene {n} from the shadow realm…",
+    # ── Round 4: Tomlin — Goodlife Raid Leader ──
+    "🏹 Tomlin is aiming his Hunter at Scene {n} — PULL!",
+    "⚔️ Raid Leader Tomlin called 'LUST NOW' on Scene {n}…",
+    "🐺 Tomlin's pet just fetched Scene {n} from the instance…",
+    "🛡️ Tomlin is tanking the render queue — hold DPS…",
+    "🎯 Tomlin marked Scene {n} with Skull — focus target…",
+    "🏰 Goodlife guild is clearing Scene {n} on Mythic…",
+    # ── Round 5: Bilal — The Absolute Unit ──
+    "🗿 Bilal just walked in — Scene {n} is intimidated…",
+    "☀️ Bilal's bald head is reflecting light onto Scene {n}…",
+    "🏗️ Bilal is built different — so is Scene {n}…",
+    "👤 Bilal's shadow alone rendered Scene {n}…",
+    "💎 Scene {n} is as solid as Bilal's frame…",
+    "🌍 Bilal stood up and Scene {n} loaded from the sheer gravity…",
+    # ── Round 6: Rebel — The OG ──
+    "🎮 Rebel Alt-Tabbed from DotA to check on Scene {n}…",
+    "🖥️ Rebel was the first to download Psimplicity — respect the OG…",
+    "⚔️ Rebel just TP'd mid-teamfight to render Scene {n}…",
+    "🐉 Rebel's WoW main is AFK — busy generating Scene {n}…",
+    "🏆 First downloader Rebel approves of Scene {n}…",
+    "🎯 Rebel called 'GG EZ' — Scene {n} is almost done…",
 ]
 
 def _pick_easter_egg(scene_num=0, total=0):
