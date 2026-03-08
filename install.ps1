@@ -9,7 +9,8 @@ Write-Host ""
 try {
     $null = Get-Command git -ErrorAction Stop
     Write-Host "[OK] Git is installed." -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "[ERROR] Git is not installed or not in PATH." -ForegroundColor Red
     Write-Host "Please download and install Git: https://git-scm.com/downloads" -ForegroundColor Yellow
     Exit
@@ -20,7 +21,8 @@ try {
     $null = Get-Command python -ErrorAction Stop
     $pyVersion = (& python --version 2>&1)
     Write-Host "[OK] Python is installed ($pyVersion)." -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "[ERROR] Python is not installed or not in PATH." -ForegroundColor Red
     Write-Host "Please download Python 3.10+: https://www.python.org/downloads/" -ForegroundColor Yellow
     Write-Host "IMPORTANT: Check 'Add Python to PATH' during installation!" -ForegroundColor Yellow
@@ -48,8 +50,9 @@ Write-Host "Downloading Psimplicity into $installDir..." -ForegroundColor Cyan
 if (Test-Path "psimplicity") {
     Write-Host "[WARNING] Folder 'psimplicity' already exists. Pulling latest updates..." -ForegroundColor Yellow
     Set-Location "psimplicity"
-    git pull origin master
-} else {
+    git pull origin main
+}
+else {
     git clone https://github.com/psigho/psimplicity.git
     Set-Location "psimplicity"
 }

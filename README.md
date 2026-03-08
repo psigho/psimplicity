@@ -44,10 +44,10 @@ After every image is generated, an AI Art Director scores it across **8 dimensio
 
 ### ⚡ 1-Click Windows Installer (Recommended)
 
-Open PowerShell and paste this command:
+Run the following command in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/psigho/psimplicity/master/install.ps1 | iex
+irm https://raw.githubusercontent.com/psigho/psimplicity/main/install.ps1 | iex
 ```
 
 *This will automatically install Python/Git (if missing), download the app, and launch it!*
