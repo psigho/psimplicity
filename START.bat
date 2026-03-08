@@ -28,40 +28,47 @@ if errorlevel 1 (
 for /f "tokens=*" %%i in ('python --version') do echo  [OK] %%i found.
 
 :: Check if .env exists
-if not exist ".env" (
-    echo.
-    echo  ============================================
-    echo   FIRST TIME SETUP - API KEY NEEDED
-    echo  ============================================
-    echo.
-    
-    if exist ".env.example" (
-        copy .env.example .env >nul
-    )
-    
-    echo  You need a FREE Gemini API key:
-    echo.
-    echo  1. Open: https://aistudio.google.com/apikey
-    echo  2. Sign in with Google
-    echo  3. Click "Create API Key"
-    echo  4. Copy the key
-    echo.
-    set GEMINI_KEY=
-    set /p GEMINI_KEY="  Paste your API key here (or press Enter to skip): "
-    
-    :: Write key to .env by replacing the empty placeholder
-    if not "%GEMINI_KEY%"=="" (
-        python -c "import os; lines=open('.env').read().replace('GEMINI_API_KEY=', 'GEMINI_API_KEY=' + os.environ.get('GEMINI_KEY', '')); open('.env', 'w').write(lines)"
-    )
-    
-    echo.
-    echo  [OK] API key saved to .env
-    echo.
-    
-    :: Verify
-    type .env
-    echo.
+if exist ".env" goto skip_env_setup
+
+echo.
+echo  ============================================
+echo   FIRST TIME SETUP - API KEY NEEDED
+echo  ============================================
+echo.
+
+if exist ".env.example" (
+    copy .env.example .env >nul
 )
+
+echo  You need a FREE Gemini API key:
+echo.
+echo  1. Open: https://aistudio.google.com/apikey
+echo  2. Sign in with Google
+echo  3. Click "Create API Key"
+echo  4. Copy the key
+echo.
+echo  [IMPORTANT INSTRUCTION]
+echo  Once the app opens in your browser, look for the "Configuration" 
+echo  menu on the left side of the screen. Paste your key there and
+echo  click "Save Configuration"!
+echo.
+set GEMINI_KEY=
+set /p GEMINI_KEY="  Paste your API key here (or press Enter to skip): "
+
+:: Write key to .env by replacing the empty placeholder
+if not "%GEMINI_KEY%"=="" (
+    python -c "import os; lines=open('.env').read().replace('GEMINI_API_KEY=', 'GEMINI_API_KEY=' + os.environ.get('GEMINI_KEY', '')); open('.env', 'w').write(lines)"
+)
+
+echo.
+echo  [OK] API key saved to .env
+echo.
+
+:: Verify
+type .env
+echo.
+
+:skip_env_setup
 
 :: Install dependencies
 echo  Installing packages... (this takes 1-2 min on first run)
