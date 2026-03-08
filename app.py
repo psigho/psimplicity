@@ -1230,6 +1230,8 @@ with st.sidebar:
 
         # --- Gemini API Key (primary for Google engines) ---
         st.markdown("**🔮 Gemini API Key** *(powers Nano Banana Pro & Imagen 3)*")
+        # Force reload .env to bypass Streamlit initial cache
+        load_dotenv(override=True)
         current_gemini_key = os.environ.get("GEMINI_API_KEY", "")
         new_gemini_key = st.text_input(
             "Gemini API Key",
@@ -1929,6 +1931,8 @@ if st.session_state.pipeline_running and script_text and selected_preset:
     config["pipeline"]["max_retries"] = max_retries
 
     # ── Runtime API key injection ─────────────────────────────────────
+    # Force reload .env to bypass Streamlit initial cache
+    load_dotenv(override=True)
     # If GEMINI_API_KEY is available and user picked a Google engine,
     # inject gemini_api_key config so the factory uses the simple SDK.
     _gemini_key_runtime = os.environ.get("GEMINI_API_KEY", "")
