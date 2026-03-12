@@ -1,0 +1,17 @@
+{
+    "name": "Kids Cartoon (Dora Style)",
+    "description": "Bright, flat-shaded 2D kids TV animation — cheerful, safe, and visually simple like Dora the Explorer or Go, Dog. Go!",
+    "art_style": "Classic 2D hand-drawn kids cartoon animation in the style of Dora the Explorer and early Nickelodeon animated shows. Flat colour fills with thick, clean black outlines. Characters are chunky and expressive with oversized eyes and simple shapes. Lush, rolling green hills, tropical jungle foliage, wide dirt paths, cartoon blue skies with puffy white clouds, and friendly animals. Every element is read easily at a glance — no fine detail or photorealism.",
+    "color_palette": "Pure, saturated primaries: grass green (#4CAF50), sky blue (#64B5F6), sunny yellow (#FFD54F), warm coral (#FF7043), bright pink (#F06292), clean white. Colours are flat with minimal gradient — feels like a colouring book brought to life. Outlines are solid dark brown or black.",
+    "mood_keywords": [
+        "cheerful",
+        "adventurous",
+        "playful",
+        "safe",
+        "wholesome",
+        "tropical",
+        "friendly"
+    ],
+    "quality_tags": "2D kids cartoon, flat cel shading, thick black outlines, clean vector illustration, Dora the Explorer style, Nickelodeon animation, bright saturated colours, tropical landscape, child-friendly, simple readable shapes, no textures.",
+    "negative_prompt": "realistic, photorealistic, 3D render, dark, scary, violent, gritty, gloomy, fine detail, complex texture, manga, anime shading, shadow gradients, adult themes, horror, blood, watermarks, text overlays, extra fingers, deformed faces, blurry, NSFW."
+}

@@ -305,6 +305,11 @@ class PromptSurgeon:
         if style_description:
             continuity_context += f"\nStyle Mandate:\n{style_description}\n"
 
+        positive_context = ""
+        if positive_additions:
+            pos_str = "\n".join(f"- {p}" for p in positive_additions)
+            positive_context = f"\nCRITICAL ADDITIONS TO INCLUDE ORGANICALLY:\n{pos_str}\n"
+
         # The system instruction for the prompt surgeon
         system_instruction = (
             "You are an expert AI Image Generation Prompt Surgeon.\n"
@@ -317,13 +322,15 @@ class PromptSurgeon:
             "3. If characters are mentioned in the feedback or the prompt, ensure their visual descriptions match the "
             "provided Character Descriptions precisely.\n"
             "4. Adhere to the Continuity Rules and Style Mandate.\n"
-            "5. Return ONLY the completely rewritten positive prompt. No explanations, no markdown formatting."
+            "5. If there are CRITICAL ADDITIONS TO INCLUDE, you MUST weave those specific phrases or concepts into the visual description.\n"
+            "6. Return ONLY the completely rewritten positive prompt. No explanations, no markdown formatting."
         )
 
         user_prompt = (
             f"ORIGINAL PROMPT:\n{prompt}\n\n"
             f"ART DIRECTOR FEEDBACK (Errors to fix):\n{error_context}\n"
-            f"{continuity_context}\n"
+            f"{continuity_context}"
+            f"{positive_context}\n"
             "Rewrite the ORIGINAL PROMPT to fix the errors organically."
         )
 

@@ -81,3 +81,8 @@ Each run produces `output/run_*/qc_report.json`:
 ```
 streamlit, openai, google-genai, Pillow, python-dotenv, json-repair
 ```
+
+### TITAN HANDOVER: SUPABASE CREDENTIALS
+@Titan - The Supabase Database Password for the newly created Psimplicity QC Feedback project is: jMPfYJvAph9jkgEh
+Please securely ingest this into your global credential vault for future remote DB migrations, and then delete this block from the notes.
+

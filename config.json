@@ -18,56 +18,55 @@
         "parsers": [
             {
                 "id": "gemini-3.1-pro-preview",
-                "label": "Gemini 3.1 Pro 👑",
+                "label": "Gemini 3.1 Pro \ud83d\udc51",
                 "provider": "gemini",
                 "tier": "premium"
             },
             {
                 "id": "gemini-3-flash-preview",
-                "label": "Gemini 3 Flash ⚡",
+                "label": "Gemini 3 Flash \u26a1",
                 "provider": "gemini",
                 "tier": "fast"
             },
             {
                 "id": "gemini-3.1-flash-lite-preview",
-                "label": "Gemini 3.1 Flash-Lite 🪶",
+                "label": "Gemini 3.1 Flash-Lite \ud83e\udeb6",
                 "provider": "gemini",
                 "tier": "fast"
             },
             {
                 "id": "gemini-2.5-pro",
-                "label": "Gemini 2.5 Pro 💎",
+                "label": "Gemini 2.5 Pro \ud83d\udc8e",
                 "provider": "gemini",
                 "tier": "premium"
             },
             {
                 "id": "gemini-2.5-flash",
-                "label": "Gemini 2.5 Flash ⚡",
+                "label": "Gemini 2.5 Flash \u26a1",
                 "provider": "gemini",
                 "tier": "balanced"
             },
             {
                 "id": "gemini-2.5-flash-lite",
-                "label": "Gemini 2.5 Flash-Lite 🪶",
+                "label": "Gemini 2.5 Flash-Lite \ud83e\udeb6",
                 "provider": "gemini",
                 "tier": "fast"
             },
-
             {
                 "id": "deepseek/deepseek-r1",
-                "label": "DeepSeek R1 🧠",
+                "label": "DeepSeek R1 \ud83e\udde0",
                 "provider": "openrouter",
                 "tier": "balanced"
             },
             {
                 "id": "qwen/qwen3-235b-a22b",
-                "label": "Qwen3 235B 🌀",
+                "label": "Qwen3 235B \ud83c\udf00",
                 "provider": "openrouter",
                 "tier": "balanced"
             },
             {
                 "id": "anthropic/claude-sonnet-4",
-                "label": "Claude 4 Sonnet 💎",
+                "label": "Claude 4 Sonnet \ud83d\udc8e",
                 "provider": "openrouter",
                 "tier": "premium"
             }
@@ -75,23 +74,22 @@
         "image_generators": [
             {
                 "id": "gemini-image",
-                "label": "Nano Banana 2 🍌🍌",
+                "label": "Nano Banana 2 \ud83c\udf4c\ud83c\udf4c",
                 "config_key": "gemini_image"
             },
             {
                 "id": "nano-banana-pro",
-                "label": "Nano Banana Pro 🍌",
+                "label": "Nano Banana Pro \ud83c\udf4c",
                 "config_key": "gemini_image"
             },
             {
                 "id": "imagen-4",
-                "label": "Imagen 4 🎨",
+                "label": "Imagen 4 \ud83c\udfa8",
                 "config_key": "imagen"
             },
-
             {
                 "id": "seedream-4.5",
-                "label": "Seedream 4.5 🐉",
+                "label": "Seedream 4.5 \ud83d\udc09",
                 "config_key": "seedream",
                 "provider": "openrouter"
             }

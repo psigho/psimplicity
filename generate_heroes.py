@@ -3,6 +3,7 @@ import io
 import time
 import logging
 from PIL import Image
+from dotenv import load_dotenv
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -57,17 +58,7 @@ class GeminiAPIKeyProvider:
 
 # --- MAIN EXECUTION ---
 def get_api_key():
-    # Try .env file first
-    env_path = ".env"
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            for line in f:
-                if line.startswith("GEMINI_API_KEY="):
-                    return line.strip().split("=", 1)[1]
-    # Hardcoded keys removed for public release
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your-openai-api-key")
-    REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "your-replicate-api-token")
-    # Try environment variable
+    load_dotenv(override=True)
     return os.environ.get("GEMINI_API_KEY")
 
 def main():
