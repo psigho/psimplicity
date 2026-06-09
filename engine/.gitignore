@@ -1,0 +1,35 @@
+# Secrets - NEVER commit
+n8n-vertex.json
+*.json.bak
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Output
+output/
+
+# Environment
+.env
+.venv/
+
+# Archives
+*.zip
+
+# Dev-only billable smoke scripts at engine root (test_poster.py, test_safety.py,
+# test_gpt_image_run.py …) stay ignored. The committed OFFLINE unit suite under
+# tests/ is explicitly re-included.
+test_*.py
+!tests/
+!tests/*.py
+
+# Old internal docs (dev only)
+HANDOVER.md
+HANDOVER_*.md
+PATCH_NOTES.md
+PATCH_NOTES_20*.md
+TODO_UI.md
+DESIGN_BRIEF.md
+INSTALL.md

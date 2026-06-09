@@ -1,0 +1,576 @@
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Space+Grotesk:wght@300..700&display=swap');
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════
+   STITCH v2.0 — Alchemical Theme
+   "Luxury, Organic, Ancient Wisdom"
+   ═══════════════════════════════════════════ */
+
+:root {
+    --color-gold: #D4AF37;
+    --color-moss: #1A2F23;
+    --color-ink: #0A0A0B;
+    --color-bone: #F9F9F7;
+    --color-midnight: #0B1120;
+    --font-serif: "Bodoni Moda", serif;
+    --font-sans: "Space Grotesk", sans-serif;
+}
+
+/* ── Base ───────────────────────────────── */
+body {
+    margin: 0;
+    background-color: var(--color-moss);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-serif);
+    margin: 0;
+}
+
+/* ── Scrollbar ─────────────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-ink);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-gold);
+    border-radius: 3px;
+}
+
+/* ── Components ─────────────────────────── */
+.btn-gold {
+    display: inline-block;
+    padding: 1rem 2rem;
+    background: transparent;
+    border: 1px solid var(--color-gold);
+    color: var(--color-gold);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: var(--font-sans);
+    text-decoration: none;
+}
+
+.btn-gold:hover {
+    background-color: var(--color-gold);
+    color: var(--color-moss);
+    box-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
+}
+
+.alchemical-fragment {
+    background: rgba(10, 10, 11, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(212, 175, 55, 0.2);
+    box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+/* ═══════════════════════════════════════════
+   GALLERY — Dreams Made Real
+   ═══════════════════════════════════════════ */
+
+.gallery-section {
+    background: linear-gradient(180deg,
+            var(--color-moss) 0%,
+            var(--color-ink) 30%,
+            var(--color-ink) 70%,
+            var(--color-moss) 100%);
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    .gallery-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.gallery-card {
+    cursor: pointer;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.gallery-card-inner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    border: 1px solid rgba(212, 175, 55, 0.1);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.gallery-card:hover .gallery-card-inner {
+    border-color: rgba(212, 175, 55, 0.4);
+    box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.6),
+        0 0 30px rgba(212, 175, 55, 0.1);
+}
+
+.gallery-card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s;
+    filter: saturate(0.85);
+}
+
+.gallery-card:hover img {
+    transform: scale(1.08);
+    filter: saturate(1);
+}
+
+.gallery-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(10, 10, 11, 0.9) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.gallery-card:hover .gallery-card-overlay {
+    opacity: 1;
+}
+
+.gallery-card-scene {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-gold);
+    margin-bottom: 0.25rem;
+}
+
+.gallery-card-title {
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    color: var(--color-bone);
+}
+
+/* ── Lightbox ──────────────────────────── */
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 2rem;
+}
+
+.lightbox-img {
+    max-width: 90vw;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
+}
+
+.lightbox-caption {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.lightbox-caption h3 {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    color: var(--color-bone);
+    margin-bottom: 0.25rem;
+}
+
+.lightbox-caption span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-gold);
+}
+
+/* ═══════════════════════════════════════════
+   INTERVIEW — The Vision
+   ═══════════════════════════════════════════ */
+
+.interview-section {
+    position: relative;
+    background: var(--color-moss);
+}
+
+.interview-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.interview-grid {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
+
+.interview-quote {
+    padding: 2.5rem;
+    background: rgba(10, 10, 11, 0.5);
+    border-left: 2px solid var(--color-gold);
+    border-radius: 0 8px 8px 0;
+    position: relative;
+}
+
+.interview-quote p {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    line-height: 1.8;
+    font-style: italic;
+    opacity: 0.9;
+    color: var(--color-bone);
+}
+
+.interview-quote-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--color-gold);
+    margin-bottom: 1rem;
+    font-family: var(--font-sans);
+}
+
+.interview-quote-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.interview-divider {
+    width: 40px;
+    height: 1px;
+    background: var(--color-gold);
+    opacity: 0.4;
+}
+
+.interview-quote-footer span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-gold);
+    opacity: 0.7;
+    font-family: var(--font-sans);
+}
+
+/* ═══════════════════════════════════════════
+   CALL TO ACTION — Enter the Machine
+   ═══════════════════════════════════════════ */
+
+.cta-section {
+    background: linear-gradient(180deg,
+            var(--color-moss) 0%,
+            var(--color-midnight) 40%,
+            #0d1a2a 100%);
+}
+
+.cta-clouds {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 20% 80%, rgba(212, 175, 55, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(45, 212, 191, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(212, 175, 55, 0.02) 0%, transparent 40%);
+    animation: cloudDrift 20s ease-in-out infinite alternate;
+}
+
+.cta-particles {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.cta-particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: var(--color-gold);
+    border-radius: 50%;
+    opacity: 0;
+    animation: particleFloat 5s ease-in-out infinite;
+}
+
+.cta-link {
+    color: var(--color-bone);
+    text-decoration: none;
+    font-size: 0.875rem;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    transition: all 0.3s;
+    font-family: var(--font-sans);
+}
+
+.cta-link:hover {
+    opacity: 1;
+    color: var(--color-gold);
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════ */
+
+@keyframes cloudDrift {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(-20px, 10px) scale(1.05);
+    }
+}
+
+@keyframes particleFloat {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0);
+    }
+
+    20% {
+        opacity: 0.8;
+        transform: translateY(-20px) scale(1);
+    }
+
+    80% {
+        opacity: 0.4;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-100px) scale(0.5);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   GOLD DUST PARTICLES — Floating System
+   ═══════════════════════════════════════════ */
+
+.gold-dust-field {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.gold-dust {
+    position: absolute;
+    background: radial-gradient(circle, var(--color-gold), transparent);
+    border-radius: 50%;
+    opacity: 0;
+    animation: dustFloat linear infinite;
+    filter: blur(0.5px);
+}
+
+@keyframes dustFloat {
+    0% {
+        opacity: 0;
+        transform: translateY(0) translateX(0) scale(0.3);
+    }
+
+    10% {
+        opacity: 0.9;
+        transform: translateY(-10px) translateX(5px) scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: translateY(-60px) translateX(-15px) scale(0.8);
+    }
+
+    90% {
+        opacity: 0.2;
+        transform: translateY(-120px) translateX(10px) scale(0.4);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-150px) translateX(0) scale(0.2);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   HERO SHIMMER — Golden Light Sweep
+   ═══════════════════════════════════════════ */
+
+.hero-shimmer {
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    pointer-events: none;
+    background: linear-gradient(105deg,
+            transparent 40%,
+            rgba(212, 175, 55, 0.07) 45%,
+            rgba(212, 175, 55, 0.12) 50%,
+            rgba(212, 175, 55, 0.07) 55%,
+            transparent 60%);
+    background-size: 200% 100%;
+    animation: shimmerSweep 6s ease-in-out infinite;
+}
+
+@keyframes shimmerSweep {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ═══════════════════════════════════════════
+   SCROLL INDICATOR
+   ═══════════════════════════════════════════ */
+
+.scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.scroll-indicator span {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    color: var(--color-gold);
+    opacity: 0.6;
+    font-family: var(--font-sans);
+}
+
+.scroll-line {
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--color-gold), transparent);
+    animation: scrollPulse 2s ease-in-out infinite;
+}
+
+@keyframes scrollPulse {
+
+    0%,
+    100% {
+        opacity: 0.3;
+        transform: scaleY(0.6);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   GALLERY CARD STAGGERED REVEAL
+   ═══════════════════════════════════════════ */
+
+.gallery-card {
+    transform: translateY(30px);
+    opacity: 0;
+    animation: revealUp 0.8s ease-out forwards;
+}
+
+.gallery-card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.gallery-card:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.gallery-card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.gallery-card:nth-child(4) {
+    animation-delay: 0.25s;
+}
+
+.gallery-card:nth-child(5) {
+    animation-delay: 0.3s;
+}
+
+.gallery-card:nth-child(6) {
+    animation-delay: 0.35s;
+}
+
+.gallery-card:nth-child(7) {
+    animation-delay: 0.4s;
+}
+
+.gallery-card:nth-child(8) {
+    animation-delay: 0.45s;
+}
+
+.gallery-card:nth-child(9) {
+    animation-delay: 0.5s;
+}
+
+.gallery-card:nth-child(10) {
+    animation-delay: 0.55s;
+}
+
+.gallery-card:nth-child(11) {
+    animation-delay: 0.6s;
+}
+
+.gallery-card:nth-child(12) {
+    animation-delay: 0.65s;
+}
+
+@keyframes revealUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

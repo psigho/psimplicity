@@ -1,0 +1,17 @@
+{
+    "name": "Social Media Post",
+    "description": "Engaging, modern, relatable aesthetic designed for Instagram/Facebook feeds. Feels organic yet premium.",
+    "art_style": "Modern lifestyle and social media photography. The image should feel organic, relatable, and scroll-stopping. Shot from engaging angles (e.g., POV, dynamic high angles, or intimate close-ups). Lighting is natural, mimicking golden hour, bright window light, or stylish moody indoor lighting. The composition is optimized for a 4:5 or 1:1 square crop natively. It feels less staged than a billboard and more like a high-end influencer or brand's curated social feed.",
+    "color_palette": "Vibrant, scroll-stopping, but strictly adhering to Brand Guidelines. Colors should pop nicely on mobile screens. Warm, inviting tones often work best here unless overridden by the brand.",
+    "mood_keywords": [
+        "engaging",
+        "organic",
+        "relatable",
+        "lifestyle",
+        "trendy",
+        "scroll-stopping",
+        "authentic"
+    ],
+    "quality_tags": "High-end social media photography, Instagram aesthetic, lifestyle photography, natural lighting, golden hour, bright and airy, relatable setting, organic composition, crisp details, vibrant colors.",
+    "negative_prompt": "overly staged, stiff corporate, generic stock photo, isolated on white background, dull colors, low resolution, blurry, text, typography, watermark, artificial looking, bad anatomy, deformed elements."
+}

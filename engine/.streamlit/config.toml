@@ -1,0 +1,28 @@
+# Psimplicity — native Streamlit theme foundation.
+# Mirrors the in-app CSS design system (engine/app.py) so the base widgets
+# render dark from first paint, eliminating the light-mode flash-of-unstyled
+# content before the custom <style> block loads. The CSS block still layers
+# the finer details (glassmorphism, gradients, badges) on top.
+
+[theme]
+base = "dark"
+primaryColor = "#00d4aa"
+backgroundColor = "#050508"
+secondaryBackgroundColor = "#0a0a10"
+textColor = "#e8e8ec"
+linkColor = "#00d4aa"
+codeBackgroundColor = "#0d1117"
+borderColor = "#1a1e28"
+showWidgetBorder = true
+baseRadius = "0.6rem"
+font = "sans-serif"
+
+[server]
+# Keep runs local-only; the pipeline holds API keys in session.
+# XSRF protection on (it takes precedence over CORS, which Streamlit then
+# forces back to enabled — so we don't set enableCORS here to avoid the warning).
+headless = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false

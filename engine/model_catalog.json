@@ -1,0 +1,391 @@
+{
+  "_meta": {
+    "note": "Image-model catalog. Each entry maps to a runtime provider (fal_ai | bfl | replicate | gemini_api_key | seedream | dalle). Hand-curated from research + cross-referenced with OGA (K:/Gen Media/Open-Generative-AI/packages/studio/src/models.js). Edit freely.",
+    "version": 1,
+    "schema": {
+      "id": "stable identifier — used by Streamlit as the dropdown key",
+      "label": "human-readable name + emoji",
+      "provider": "config_key that selects which subclass create_provider() uses",
+      "endpoint": "provider-specific model slug (fal-ai/...) or endpoint name (flux-pro-1.1) or replicate model id (owner/name)",
+      "tier": "fast | balanced | premium — controls sort/grouping in UI",
+      "mode": "t2i | i2i — text-to-image vs image-to-image (i2i needs reference_images)",
+      "cost_per_image": "USD estimate at time of writing",
+      "supports_reference": "true if model accepts reference images",
+      "disabled": "true if model exists in OGA catalog but has no public API (e.g. Midjourney)",
+      "params": "optional dict of provider-specific defaults forwarded into provider.default_params"
+    }
+  },
+  "image_models": [
+    {
+      "id": "fal-flux-dev",
+      "label": "Flux Dev (fal.ai) ⚡",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/flux/dev",
+      "tier": "fast",
+      "mode": "t2i",
+      "cost_per_image": 0.025,
+      "supports_reference": false,
+      "params": {"image_size": "landscape_4_3", "num_inference_steps": 28}
+    },
+    {
+      "id": "fal-flux-schnell",
+      "label": "Flux Schnell (fal.ai) ⚡⚡",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/flux/schnell",
+      "tier": "fast",
+      "mode": "t2i",
+      "cost_per_image": 0.003,
+      "supports_reference": false,
+      "params": {"image_size": "landscape_4_3", "num_inference_steps": 4}
+    },
+    {
+      "id": "fal-flux-pro-v11",
+      "label": "Flux Pro v1.1 (fal.ai) 💎",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/flux-pro/v1.1",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.04,
+      "supports_reference": false,
+      "params": {"image_size": "landscape_4_3"}
+    },
+    {
+      "id": "fal-flux-pro-v11-ultra",
+      "label": "Flux Pro v1.1 Ultra (fal.ai) 👑",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/flux-pro/v1.1-ultra",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.06,
+      "supports_reference": false,
+      "params": {"aspect_ratio": "16:9"}
+    },
+    {
+      "id": "fal-flux-kontext-pro",
+      "label": "Flux Kontext Pro Edit (fal.ai) ✏️",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/flux-pro/kontext",
+      "tier": "premium",
+      "mode": "i2i",
+      "cost_per_image": 0.04,
+      "supports_reference": true
+    },
+    {
+      "id": "fal-flux-kontext-max",
+      "label": "Flux Kontext Max Edit (fal.ai) ✏️💎",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/flux-pro/kontext/max",
+      "tier": "premium",
+      "mode": "i2i",
+      "cost_per_image": 0.08,
+      "supports_reference": true
+    },
+    {
+      "id": "fal-recraft-v3",
+      "label": "Recraft V3 (fal.ai) 🎨",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/recraft-v3",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.04,
+      "supports_reference": false,
+      "params": {"image_size": "landscape_4_3", "style": "realistic_image"}
+    },
+    {
+      "id": "fal-ideogram-v3",
+      "label": "Ideogram v3 (fal.ai) 🔤",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/ideogram/v3",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.06,
+      "supports_reference": false,
+      "params": {"aspect_ratio": "16:9"}
+    },
+    {
+      "id": "fal-nano-banana",
+      "label": "Nano Banana (fal.ai) 🍌",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/nano-banana",
+      "tier": "balanced",
+      "mode": "t2i",
+      "cost_per_image": 0.039,
+      "supports_reference": false
+    },
+    {
+      "id": "fal-nano-banana-edit",
+      "label": "Nano Banana Edit (fal.ai) 🍌✏️",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/nano-banana/edit",
+      "tier": "balanced",
+      "mode": "i2i",
+      "cost_per_image": 0.039,
+      "supports_reference": true
+    },
+    {
+      "id": "fal-seedream-v3",
+      "label": "Seedream v3 (fal.ai) 🐉",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/bytedance/seedream/v3/text-to-image",
+      "tier": "balanced",
+      "mode": "t2i",
+      "cost_per_image": 0.03,
+      "supports_reference": false
+    },
+    {
+      "id": "fal-seededit-v3",
+      "label": "Seededit v3 Edit (fal.ai) 🐉✏️",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/bytedance/seededit/v3/edit-image",
+      "tier": "balanced",
+      "mode": "i2i",
+      "cost_per_image": 0.03,
+      "supports_reference": true
+    },
+    {
+      "id": "fal-qwen-image",
+      "label": "Qwen Image (fal.ai) 🌀",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/qwen-image",
+      "tier": "balanced",
+      "mode": "t2i",
+      "cost_per_image": 0.025,
+      "supports_reference": false
+    },
+    {
+      "id": "fal-qwen-image-edit",
+      "label": "Qwen Image Edit (fal.ai) 🌀✏️",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/qwen-image-edit",
+      "tier": "balanced",
+      "mode": "i2i",
+      "cost_per_image": 0.03,
+      "supports_reference": true
+    },
+    {
+      "id": "fal-imagen4-preview",
+      "label": "Imagen 4 Preview (fal.ai) 🎨",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/imagen4/preview",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.04,
+      "supports_reference": false
+    },
+    {
+      "id": "fal-fast-sdxl",
+      "label": "Fast SDXL (fal.ai) ⚡",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/fast-sdxl",
+      "tier": "fast",
+      "mode": "t2i",
+      "cost_per_image": 0.004,
+      "supports_reference": false,
+      "params": {"image_size": "landscape_4_3", "num_inference_steps": 25}
+    },
+    {
+      "id": "fal-sd35-large",
+      "label": "Stable Diffusion 3.5 Large (fal.ai)",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/stable-diffusion-v35-large",
+      "tier": "balanced",
+      "mode": "t2i",
+      "cost_per_image": 0.035,
+      "supports_reference": false
+    },
+    {
+      "id": "fal-clarity-upscaler",
+      "label": "Clarity Upscaler (fal.ai) 🔍",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/clarity-upscaler",
+      "tier": "balanced",
+      "mode": "i2i",
+      "cost_per_image": 0.04,
+      "supports_reference": true
+    },
+    {
+      "id": "fal-rembg",
+      "label": "Background Remover (fal.ai) ✂️",
+      "provider": "fal_ai",
+      "endpoint": "fal-ai/imageutils/rembg",
+      "tier": "fast",
+      "mode": "i2i",
+      "cost_per_image": 0.001,
+      "supports_reference": true
+    },
+
+    {
+      "id": "bfl-flux-pro-11",
+      "label": "Flux Pro 1.1 (BFL native) ⚡💎",
+      "provider": "bfl",
+      "endpoint": "flux-pro-1.1",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.04,
+      "supports_reference": false,
+      "params": {"width": 1440, "height": 1024, "output_format": "png"}
+    },
+    {
+      "id": "bfl-flux-pro-11-ultra",
+      "label": "Flux Pro 1.1 Ultra (BFL native) 👑",
+      "provider": "bfl",
+      "endpoint": "flux-pro-1.1-ultra",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.06,
+      "supports_reference": false,
+      "params": {"aspect_ratio": "16:9", "output_format": "png"}
+    },
+    {
+      "id": "bfl-flux-dev",
+      "label": "Flux Dev (BFL native) ⚡",
+      "provider": "bfl",
+      "endpoint": "flux-dev",
+      "tier": "fast",
+      "mode": "t2i",
+      "cost_per_image": 0.025,
+      "supports_reference": false,
+      "params": {"width": 1440, "height": 1024, "output_format": "png"}
+    },
+    {
+      "id": "bfl-flux-kontext-pro",
+      "label": "Flux Kontext Pro (BFL native) ✏️",
+      "provider": "bfl",
+      "endpoint": "flux-kontext-pro",
+      "tier": "premium",
+      "mode": "i2i",
+      "cost_per_image": 0.04,
+      "supports_reference": true,
+      "params": {"output_format": "png"}
+    },
+    {
+      "id": "bfl-flux-kontext-max",
+      "label": "Flux Kontext Max (BFL native) ✏️💎",
+      "provider": "bfl",
+      "endpoint": "flux-kontext-max",
+      "tier": "premium",
+      "mode": "i2i",
+      "cost_per_image": 0.08,
+      "supports_reference": true,
+      "params": {"output_format": "png"}
+    },
+
+    {
+      "id": "replicate-flux-dev",
+      "label": "Flux Dev (Replicate)",
+      "provider": "replicate",
+      "endpoint": "black-forest-labs/flux-dev",
+      "tier": "fast",
+      "mode": "t2i",
+      "cost_per_image": 0.03,
+      "supports_reference": false,
+      "params": {"aspect_ratio": "16:9", "output_format": "png"}
+    },
+    {
+      "id": "replicate-flux-schnell",
+      "label": "Flux Schnell (Replicate) ⚡⚡",
+      "provider": "replicate",
+      "endpoint": "black-forest-labs/flux-schnell",
+      "tier": "fast",
+      "mode": "t2i",
+      "cost_per_image": 0.003,
+      "supports_reference": false,
+      "params": {"aspect_ratio": "16:9", "output_format": "png"}
+    },
+    {
+      "id": "replicate-sdxl",
+      "label": "SDXL (Replicate)",
+      "provider": "replicate",
+      "endpoint": "stability-ai/sdxl",
+      "tier": "balanced",
+      "mode": "t2i",
+      "cost_per_image": 0.0035,
+      "supports_reference": false
+    },
+    {
+      "id": "replicate-ideogram-v3-turbo",
+      "label": "Ideogram v3 Turbo (Replicate) 🔤",
+      "provider": "replicate",
+      "endpoint": "ideogram-ai/ideogram-v3-turbo",
+      "tier": "fast",
+      "mode": "t2i",
+      "cost_per_image": 0.03,
+      "supports_reference": false
+    },
+    {
+      "id": "replicate-real-esrgan",
+      "label": "Real-ESRGAN Upscaler (Replicate) 🔍",
+      "provider": "replicate",
+      "endpoint": "nightmareai/real-esrgan",
+      "tier": "fast",
+      "mode": "i2i",
+      "cost_per_image": 0.002,
+      "supports_reference": true,
+      "params": {"scale": 2}
+    },
+
+    {
+      "id": "gemini-nano-banana-pro",
+      "label": "Nano Banana Pro (Gemini API) 🍌👑",
+      "provider": "gemini_api_key",
+      "endpoint": "gemini-3-pro-image-preview",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.039,
+      "supports_reference": true,
+      "params": {"engine": "gemini-image"}
+    },
+    {
+      "id": "gemini-imagen-3",
+      "label": "Imagen 3 (Gemini API) 🎨",
+      "provider": "gemini_api_key",
+      "endpoint": "imagen-3.0-generate-001",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.04,
+      "supports_reference": false,
+      "params": {"engine": "imagen-3"}
+    },
+    {
+      "id": "openrouter-seedream-45",
+      "label": "Seedream 4.5 (OpenRouter) 🐉",
+      "provider": "seedream",
+      "endpoint": "bytedance-seed/seedream-4.5",
+      "tier": "balanced",
+      "mode": "t2i",
+      "cost_per_image": 0.04,
+      "supports_reference": false
+    },
+    {
+      "id": "openai-dalle-3",
+      "label": "DALL-E 3 (OpenAI)",
+      "provider": "dalle",
+      "endpoint": "dall-e-3",
+      "tier": "premium",
+      "mode": "t2i",
+      "cost_per_image": 0.04,
+      "supports_reference": false
+    },
+
+    {
+      "id": "midjourney-v7",
+      "label": "Midjourney v7 (no public API)",
+      "provider": "unavailable",
+      "endpoint": "midjourney-v7",
+      "tier": "premium",
+      "mode": "t2i",
+      "disabled": true,
+      "supports_reference": false
+    },
+    {
+      "id": "sora-2",
+      "label": "Sora 2 (gated)",
+      "provider": "unavailable",
+      "endpoint": "sora-2",
+      "tier": "premium",
+      "mode": "t2i",
+      "disabled": true,
+      "supports_reference": false
+    }
+  ]
+}

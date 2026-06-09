@@ -1,0 +1,15 @@
+{
+    "name": "Retro Synthwave",
+    "description": "80s retro-futurism — neon grids, chrome, and sunset gradients from another timeline",
+    "art_style": "Retro-futuristic synthwave aesthetic, 80s sci-fi book cover art meets Miami Vice. Chrome surfaces, scanline overlays, geometric grids receding to horizon, palm tree silhouettes against gradient skies. VHS tracking artifacts as stylistic choice.",
+    "color_palette": "Hot magenta, electric cyan, deep purple, chrome silver, sunset orange-to-pink gradients. Black backgrounds with neon glow. Grid lines in teal.",
+    "mood_keywords": [
+        "nostalgic",
+        "futuristic",
+        "energetic",
+        "bold",
+        "electric"
+    ],
+    "quality_tags": "Synthwave digital art, neon glow effects, chrome reflections, retro-futuristic, 80s aesthetic, geometric perspective grid, high detail, poster quality composition.",
+    "negative_prompt": "photorealistic, natural lighting, muted colors, vintage sepia, cartoon, chibi, sketch, blurry, low quality, AI artifacts, extra fingers, malformed hands, distorted faces, text overlays, watermarks, generic stock look."
+}

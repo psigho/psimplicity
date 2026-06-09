@@ -1,0 +1,17 @@
+{
+    "name": "Key Visual",
+    "description": "High-impact, hero-image style optimized for billboards, website headers, and major campaign assets. Extremely high quality with focus on product hero and clear space for typography.",
+    "art_style": "Hero product photography, breathtaking and monumental composition. The subject is shot with premium commercial lighting, emphasizing material textures, reflections, and perfect form. Wide, epic framing with generous negative space (at least 40% of canvas) intended for headline copy. Shot on medium format camera, incredibly sharp focus on the hero subject with smooth, creamy bokeh in the background. The visual should feel like a multi-million dollar flagship campaign asset.",
+    "color_palette": "Brand-aligned palette. Deep, rich, and highly contrasted. Shadows should be velvety and deep, highlights crisp but not blown out. Overall color grading follows the Brand Guidelines meticulously.",
+    "mood_keywords": [
+        "monumental",
+        "heroic",
+        "premium",
+        "flagship",
+        "billboard-ready",
+        "immaculate",
+        "commercial-grade"
+    ],
+    "quality_tags": "Masterpiece, 8k resolution, medium format photography, Hasselblad, Phase One, commercial product photography, perfectly lit, flawless material rendering, sharp focus, epic scale, grand composition, high-end retouching, glossy magazine cover quality.",
+    "negative_prompt": "amateur photography, blurry, pixelated, noisy, messy composition, cluttered background, harsh direct flash, flat lighting, watermark, text, typography, letters, words, UI elements, low resolution, cheap, generic stock photo, AI artifacts, malformed objects."
+}

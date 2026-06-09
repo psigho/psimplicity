@@ -1,0 +1,181 @@
+{
+    "openrouter": {
+        "api_key": "${OPENROUTER_API_KEY}",
+        "base_url": "https://openrouter.ai/api/v1",
+        "parser_model":  "google/gemini-3.1-pro-preview",
+        "critic_model":  "google/gemini-2.5-pro",
+        "surgeon_model": "google/gemini-2.5-flash"
+    },
+    "openai": {
+        "api_key": "${OPENAI_API_KEY}",
+        "base_url": "https://api.openai.com/v1"
+    },
+    "pipeline": {
+        "max_retries": 3,
+        "pass_threshold": 7.0,
+        "images_per_scene": 1
+    },
+    "output": {
+        "folder": "output",
+        "save_reports": true,
+        "emit_llm_events_jsonl": true
+    },
+    "_comment_costs": "Costs are per 1M tokens (USD). Source: vendor pricing pages as of 2026-05. Update via scripts/extract_oga_catalog.mjs.",
+    "available_models": {
+        "parsers": [
+            {
+                "id": "gemini-3.1-pro-preview",
+                "label": "Gemini 3.1 Pro 👑",
+                "provider": "gemini",
+                "tier": "premium",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 1.25,
+                "usd_per_million_output_tokens": 10.00
+            },
+            {
+                "id": "gemini-3-flash-preview",
+                "label": "Gemini 3 Flash ⚡",
+                "provider": "gemini",
+                "tier": "fast",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 0.30,
+                "usd_per_million_output_tokens": 2.50
+            },
+            {
+                "id": "gemini-3.1-flash-lite-preview",
+                "label": "Gemini 3.1 Flash-Lite 🪶",
+                "provider": "gemini",
+                "tier": "fast",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 0.10,
+                "usd_per_million_output_tokens": 0.40
+            },
+            {
+                "id": "gemini-2.5-pro",
+                "label": "Gemini 2.5 Pro 💎",
+                "provider": "gemini",
+                "tier": "premium",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 1.25,
+                "usd_per_million_output_tokens": 10.00
+            },
+            {
+                "id": "gemini-2.5-flash",
+                "label": "Gemini 2.5 Flash ⚡",
+                "provider": "gemini",
+                "tier": "balanced",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 0.30,
+                "usd_per_million_output_tokens": 2.50
+            },
+            {
+                "id": "gemini-2.5-flash-lite",
+                "label": "Gemini 2.5 Flash-Lite 🪶",
+                "provider": "gemini",
+                "tier": "fast",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 0.10,
+                "usd_per_million_output_tokens": 0.40
+            },
+            {
+                "id": "deepseek/deepseek-r1",
+                "label": "DeepSeek R1 🧠 (text-only)",
+                "provider": "openrouter",
+                "tier": "balanced",
+                "supports_vision": false,
+                "usd_per_million_input_tokens": 0.55,
+                "usd_per_million_output_tokens": 2.19
+            },
+            {
+                "id": "qwen/qwen3-235b-a22b",
+                "label": "Qwen3 235B 🌀 (text-only)",
+                "provider": "openrouter",
+                "tier": "balanced",
+                "supports_vision": false,
+                "usd_per_million_input_tokens": 0.20,
+                "usd_per_million_output_tokens": 0.60
+            },
+            {
+                "id": "anthropic/claude-sonnet-4",
+                "label": "Claude 4 Sonnet 💎",
+                "provider": "openrouter",
+                "tier": "premium",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 3.00,
+                "usd_per_million_output_tokens": 15.00
+            },
+            {
+                "id": "openai/gpt-4o",
+                "label": "GPT-4o 🎯",
+                "provider": "openrouter",
+                "tier": "premium",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 2.50,
+                "usd_per_million_output_tokens": 10.00
+            },
+            {
+                "id": "openai/gpt-4o-mini",
+                "label": "GPT-4o mini ⚡",
+                "provider": "openrouter",
+                "tier": "fast",
+                "supports_vision": true,
+                "usd_per_million_input_tokens": 0.15,
+                "usd_per_million_output_tokens": 0.60
+            }
+        ],
+        "_comment_critics": "vision_critics filters parsers to only those with supports_vision: true. UI should surface only this list for the critic dropdown.",
+        "vision_critics": [
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-3.1-pro-preview",
+            "gemini-3-flash-preview",
+            "anthropic/claude-sonnet-4",
+            "openai/gpt-4o",
+            "openai/gpt-4o-mini"
+        ],
+        "image_generators": [
+            {
+                "id": "gemini-image",
+                "label": "Nano Banana 2 🍌🍌",
+                "config_key": "gemini_image",
+                "usd_per_image": 0.04
+            },
+            {
+                "id": "nano-banana-pro",
+                "label": "Nano Banana Pro 🍌",
+                "config_key": "gemini_image",
+                "usd_per_image": 0.08
+            },
+            {
+                "id": "imagen-4",
+                "label": "Imagen 4 🎨",
+                "config_key": "imagen",
+                "usd_per_image": 0.04
+            },
+            {
+                "id": "seedream-4.5",
+                "label": "Seedream 4.5 🐉",
+                "config_key": "seedream",
+                "provider": "openrouter",
+                "usd_per_image": 0.04
+            },
+            {
+                "id": "gpt-image-2",
+                "label": "GPT-Image 2 🖼️ (OpenAI · latest)",
+                "config_key": "gpt_image",
+                "usd_per_image": 0.17,
+                "_note": "Released 2026-04-21 (snapshot gpt-image-2-2026-04-21). Reasoning/thinking mode, up to 4K, ~99% text accuracy. usd_per_image is a high-quality estimate; low quality ~$0.01, 4K high ~$0.41."
+            },
+            {
+                "id": "gpt-image-1",
+                "label": "GPT-Image 1 🖼️ (OpenAI · legacy)",
+                "config_key": "gpt_image",
+                "usd_per_image": 0.04
+            }
+        ]
+    },
+    "gemini_api_key": {
+        "api_key": "${GEMINI_API_KEY}",
+        "engine": "gemini-image"
+    }
+}

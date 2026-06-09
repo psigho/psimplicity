@@ -1,0 +1,15 @@
+{
+    "name": "Philosophy Dark",
+    "description": "Dark, moody visuals for philosophy/commentary videos",
+    "art_style": "Cinematic digital art, photorealistic rendering with dramatic chiaroscuro lighting, reminiscent of Caravaggio meets modern concept art.",
+    "color_palette": "Deep blacks, warm amber highlights, muted earth tones, occasional cold blue accents for contrast.",
+    "mood_keywords": [
+        "contemplative",
+        "dramatic",
+        "intellectual",
+        "profound",
+        "cinematic"
+    ],
+    "quality_tags": "Ultra-detailed, 8K resolution, professional photography composition, award-winning digital art, masterful lighting.",
+    "negative_prompt": "cartoon, anime, childish, bright neon colors, cluttered composition, text overlays, watermarks, blurry, low quality, AI artifacts, extra fingers, malformed hands, distorted faces, generic stock photo look."
+}

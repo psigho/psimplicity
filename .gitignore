@@ -1,0 +1,47 @@
+# ── Secrets — NEVER commit ──────────────────────────────────────────────
+.env
+*.env
+!*.env.example
+**/credentials.env
+**/auth/
+
+# ── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# ── Node / web frontend ─────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+
+# ── Generated pipeline output (images, qc reports, llm_calls.jsonl) ──────
+engine/output/
+**/renders/
+**/stills/
+
+# ── Backups & archives (large / redundant binaries) ─────────────────────
+.backup_*/
+*.zip
+
+# ── OS / editor cruft ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+
+# ── Internal working docs & history — local only, never in the public repo ──
+PSIMPLICITY_AUDIT_*.md
+GRILL_*.md
+GOAL_RUN_*.md
+RUN_REPORT_*.md
+archive/
+engine/AGENT_NOTES.md
+engine/HANDOVER_*.json
+engine/PATCH_NOTES*.md
+engine/psimplicity_loom_script.md

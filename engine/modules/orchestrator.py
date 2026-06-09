@@ -1,0 +1,1039 @@
+"""
+Orchestrator Module
+Controls the entire pipeline: parse → prompt → generate → critique → retry → output.
+Produces numbered images + JSON QC report.
+Supports Visual Density: each scene can have 1-3 visuals (establishing, key, detail).
+"""
+
+import copy
+import json
+import logging
+import os
+import random
+import re
+import shutil
+import time
+from datetime import datetime
+from pathlib import Path
+from dataclasses import dataclass, field, asdict
+from typing import List, Dict, Optional
+
+from .scene_parser import SceneParser, Scene, Visual
+from .prompt_builder import PromptBuilder, StylePreset
+from .image_provider import ImageProvider, create_provider
+from .art_director import ArtDirector, CritiqueResult
+from .story_bible import generate_story_bible
+from .llm_gateway import LLMGateway
+from .feedback_loop import process_feedback, FeedbackClassifier, PromptSurgeon
+from .envutil import resolve_env_text
+from .costing import BudgetExceeded, BudgetTracker, RateLimiter, image_unit_cost
+
+logger = logging.getLogger(__name__)
+
+# Visual sub-index labels: a, b, c ...
+_VISUAL_LABELS = "abcdefghijklmnopqrstuvwxyz"
+
+
+@dataclass
+class VisualResult:
+    """Tracks the generation history for one visual shot."""
+    visual_type: str
+    final_image_path: str = ""
+    final_prompt: str = ""
+    final_score: float = 0.0
+    passed: bool = False
+    attempts: int = 0
+    history: List[Dict] = field(default_factory=list)
+
+    def to_dict(self) -> Dict:
+        return {
+            "visual_type": self.visual_type,
+            "final_image_path": self.final_image_path,
+            "final_prompt": self.final_prompt,
+            "final_score": self.final_score,
+            "passed": self.passed,
+            "attempts": self.attempts,
+            "history": self.history,
+        }
+
+
+@dataclass
+class SceneResult:
+    """Tracks the full generation history for one scene (with multiple visuals)."""
+    scene_number: int
+    scene_title: str
+    # Legacy single-image fields (kept for backward compat with app.py gallery)
+    final_image_path: str = ""
+    final_prompt: str = ""
+    final_score: float = 0.0
+    passed: bool = False
+    attempts: int = 0
+    history: List[Dict] = field(default_factory=list)
+    # Visual Density: per-visual results
+    visual_results: List[VisualResult] = field(default_factory=list)
+
+    def to_dict(self) -> Dict:
+        d = {
+            "scene_number": self.scene_number,
+            "scene_title": self.scene_title,
+            "final_image_path": self.final_image_path,
+            "final_prompt": self.final_prompt,
+            "final_score": self.final_score,
+            "passed": self.passed,
+            "attempts": self.attempts,
+            "history": self.history,
+        }
+        if self.visual_results:
+            d["visual_results"] = [vr.to_dict() for vr in self.visual_results]
+        return d
+
+
+@dataclass
+class PipelineReport:
+    """Final pipeline execution report."""
+    timestamp: str
+    total_scenes: int
+    passed_scenes: int
+    failed_scenes: int
+    total_images_generated: int
+    total_critiques: int
+    average_final_score: float
+    results: List[Dict]
+    style_preset: str
+    duration_seconds: float
+    total_visuals: int = 0
+    # ── post-grill F2.3: cost + telemetry ────────────────────────────────
+    run_id: str = ""
+    total_cost_usd: float = 0.0
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    llm_calls_count: int = 0
+    image_provider_name: str = ""
+
+    def to_dict(self) -> Dict:
+        return {
+            "timestamp": self.timestamp,
+            "run_id": self.run_id,
+            "total_scenes": self.total_scenes,
+            "total_visuals": self.total_visuals,
+            "passed_scenes": self.passed_scenes,
+            "failed_scenes": self.failed_scenes,
+            "total_images_generated": self.total_images_generated,
+            "total_critiques": self.total_critiques,
+            "average_final_score": self.average_final_score,
+            "style_preset": self.style_preset,
+            "duration_seconds": self.duration_seconds,
+            "total_cost_usd": round(self.total_cost_usd, 4),
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "llm_calls_count": self.llm_calls_count,
+            "image_provider_name": self.image_provider_name,
+            "results": self.results
+        }
+
+
+# ── post-grill F2.1/F2.3: cost helpers ───────────────────────────────────
+def _build_model_cost_table(config: dict) -> Dict[str, Dict[str, float]]:
+    """Return {model_id: {'in': usd/1M, 'out': usd/1M}} from config.available_models.parsers."""
+    table: Dict[str, Dict[str, float]] = {}
+    for m in config.get("available_models", {}).get("parsers", []):
+        mid = m.get("id", "")
+        if mid:
+            table[mid] = {
+                "in":  float(m.get("usd_per_million_input_tokens", 0.0)),
+                "out": float(m.get("usd_per_million_output_tokens", 0.0)),
+            }
+    return table
+
+
+def _cost_of_call(model: str, usage: dict, cost_table: Dict[str, Dict[str, float]]) -> float:
+    """Compute USD for one LLM call. Strips any 'google/' / 'openai/' prefix when looking up."""
+    bare = model.split("/", 1)[-1] if "/" in model else model
+    row = cost_table.get(model) or cost_table.get(bare) or {"in": 0.0, "out": 0.0}
+    return (
+        (usage.get("prompt_tokens", 0)     / 1_000_000.0) * row["in"]  +
+        (usage.get("completion_tokens", 0) / 1_000_000.0) * row["out"]
+    )
+
+
+class Orchestrator:
+    """Controls the entire Script → Image pipeline with QC loop."""
+
+    _API_COOLDOWN = 1.5  # seconds between API calls (paid tier)
+
+    def __init__(self, config: dict, parser_model_override: str = None,
+                 critic_model_override: str = None, image_provider_key: str = None,
+                 image_model_id: str = ""):
+        self.config = config
+        pipeline_cfg = config.get("pipeline", {})
+        self.max_retries = pipeline_cfg.get("max_retries", 3)
+        self.pass_threshold = pipeline_cfg.get("pass_threshold", 7.0)
+        # How many scenes to process concurrently (1 = sequential, unchanged
+        # behaviour). The shared RateLimiter below keeps provider pressure flat
+        # regardless of width.
+        self.parallel_scenes = max(1, int(pipeline_cfg.get("parallel_scenes", 1) or 1))
+        self._limiter = RateLimiter(self._API_COOLDOWN)
+        # Selected image engine identity — used to price each generated image.
+        self.image_provider_key = image_provider_key or ""
+        self.image_model_id = image_model_id or ""
+        # Cost hooks — replaced with live closures inside run(); these no-op
+        # defaults keep the redo_scene path (which calls _process_scene directly)
+        # working without a budget/telemetry context.
+        self._record_image = lambda *a, **k: None
+        self._check_budget = lambda: None
+        self._image_unit_usd = 0.0
+        self._budget = BudgetTracker(0.0)
+
+        # Output folder
+        self.output_folder = Path(config.get("output", {}).get("folder", "output"))
+        self.output_folder.mkdir(parents=True, exist_ok=True)
+
+        # 1. Initialize Unified LLM Gateway
+        self.llm_gateway = LLMGateway(
+            config=config,
+            parser_override=parser_model_override,
+            critic_override=critic_model_override
+        )
+
+        # 2. Build parser with gateway
+        self.parser = SceneParser(llm_gateway=self.llm_gateway)
+
+        # 3. Image provider — use override key or let factory auto-detect
+        if image_provider_key:
+            # Build a filtered config with only the selected provider
+            if image_provider_key not in config:
+                raise ValueError(
+                    f"Image provider '{image_provider_key}' was selected but no matching "
+                    f"config block exists. For gpt_image, ensure OPENAI_API_KEY is set so the "
+                    f"runtime injection can build it."
+                )
+            img_config = {image_provider_key: config[image_provider_key]}
+            logger.info(f"Image provider override: {image_provider_key}")
+        else:
+            img_config = config.copy()
+
+        # Expand env vars for Gemini API Key (shared resolver — see modules/envutil.py)
+        if "gemini_api_key" in img_config:
+            gak = img_config["gemini_api_key"].copy()
+            gak["api_key"] = resolve_env_text(gak.get("api_key", ""))
+            img_config["gemini_api_key"] = gak
+
+        self.image_provider = create_provider(img_config)
+
+        # ── Provider chain (single provider — no round-robin) ─────────────
+        self._provider_chain = [self.image_provider]
+
+        # 4. Build critic with gateway
+        self.art_director = ArtDirector(
+            llm_gateway=self.llm_gateway,
+            pass_threshold=self.pass_threshold,
+            max_retries=self.max_retries,
+        )
+
+        logger.info("Orchestrator initialized")
+        logger.info(f"  Parser model: {self.llm_gateway.parser_model}")
+        logger.info(f"  Critic model: {self.llm_gateway.critic_model}")
+        logger.info(f"  Primary LLM Base: {self.llm_gateway.primary_base}")
+        logger.info(f"  Image provider: {self.image_provider.name()}")
+        logger.info(f"  Provider chain: {' → '.join(p.name() for p in self._provider_chain)}")
+        logger.info(f"  Pass threshold: {self.pass_threshold}/10")
+        logger.info(f"  Max retries: {self.max_retries}")
+
+
+
+    def run(self, script: str, style_preset_path: str,
+            progress_callback=None, target_scenes: int = 0,
+            project_name: str = None,
+            brand_bible_data: dict = None,
+            budget_usd: float = 0.0,
+            cost_sink=None) -> PipelineReport:
+        """Execute the full pipeline with Visual Density support.
+
+        Args:
+            script: Raw script text
+            style_preset_path: Path to style preset JSON
+            progress_callback: Optional callable(scene_num, total, status, image_path)
+            target_scenes: Target number of scenes (0 = auto-detect)
+            project_name: Optional prefix for the output folder
+            brand_bible_data: Optional Brand Bible dict from image analysis
+
+        Returns:
+            PipelineReport with all results
+        """
+        start_time = time.time()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Create run-specific output folder
+        safe_project_name = re.sub(r'[^\w\-]', '_', project_name) if project_name else ""
+
+        if safe_project_name:
+            folder_name = f"run_{safe_project_name}_{timestamp}"
+        else:
+            folder_name = f"run_{timestamp}"
+
+        run_folder = self.output_folder / folder_name
+        images_folder = run_folder / "images"
+        images_folder.mkdir(parents=True, exist_ok=True)
+
+        # ── post-grill F2.1/F2.4/F2.5: telemetry setup ─────────────────────
+        run_id = folder_name  # human-readable correlation id
+        cost_table = _build_model_cost_table(self.config)
+        emit_jsonl = bool(self.config.get("output", {}).get("emit_llm_events_jsonl", True))
+        events_path = run_folder / "llm_calls.jsonl"
+        # accumulators (mutable container — guarded by _acc_lock for parallel scenes)
+        usage_totals = {"in": 0, "out": 0, "calls": 0, "usd": 0.0,
+                        "images": 0, "image_usd": 0.0}
+        self._acc_lock = __import__("threading").Lock()
+        # Per-image price for the selected engine (audit P0: image spend was
+        # never counted, so total_cost_usd undercounted by the dominant cost).
+        self._image_unit_usd = image_unit_cost(
+            self.config, self.image_model_id, self.image_provider_key
+        )
+        # Hard USD ceiling (0 = no cap). Aborts the run via BudgetExceeded.
+        self._budget = BudgetTracker(budget_usd)
+        self._cost_sink = cost_sink
+
+        def _emit_event(ev: dict):
+            if not emit_jsonl:
+                return
+            try:
+                with open(events_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+            except Exception as exc:
+                logger.debug(f"failed to write llm_calls.jsonl: {exc}")
+
+        def _fire_sink():
+            if self._cost_sink:
+                try:
+                    self._cost_sink({
+                        "usd": round(usage_totals["usd"], 6),
+                        "calls": usage_totals["calls"],
+                        "tokens_in": usage_totals["in"],
+                        "tokens_out": usage_totals["out"],
+                        "images": usage_totals["images"],
+                    })
+                except Exception as exc:
+                    logger.debug(f"cost_sink failed: {exc}")
+
+        def _on_llm_event(ev: dict):
+            usage = ev.get("usage", {}) or {}
+            ev["usd_cost"] = round(_cost_of_call(ev.get("model", ""), usage, cost_table), 6)
+            with self._acc_lock:
+                usage_totals["in"]  += int(usage.get("prompt_tokens", 0) or 0)
+                usage_totals["out"] += int(usage.get("completion_tokens", 0) or 0)
+                usage_totals["calls"] += 1
+                usage_totals["usd"] += ev["usd_cost"]
+            self._budget.add(ev["usd_cost"])
+            _emit_event(ev)
+            _fire_sink()
+
+        def _record_image(scene_number: int = 0):
+            """Count one generated image's cost — the audit's missing line item."""
+            unit = self._image_unit_usd
+            with self._acc_lock:
+                usage_totals["images"] += 1
+                usage_totals["image_usd"] += unit
+                usage_totals["usd"] += unit
+            self._budget.add(unit)
+            _emit_event({
+                "run_id": run_id, "role": "image", "kind": "image",
+                "model": self.image_model_id or self.image_provider_key,
+                "scene_num": scene_number, "usd_cost": round(unit, 6),
+            })
+            _fire_sink()
+
+        # Expose recorder + budget check to the per-visual workers.
+        self._record_image = _record_image
+        self._check_budget = self._budget.check
+
+        # Attach run-scoped context to the gateway
+        self.llm_gateway.run_id = run_id
+        self.llm_gateway.event_callback = _on_llm_event
+
+        # Load style preset
+        style = StylePreset(style_preset_path)
+        prompt_builder = PromptBuilder(style)
+
+        # Step 1: Parse script into scenes (with multi-visual density)
+        if progress_callback:
+            progress_callback(0, 0, "Parsing script into scenes...", None)
+
+        # Thread progress_callback so parser status (model name, fallback) shows in UI
+        def _parse_status(msg):
+            if progress_callback:
+                progress_callback(0, 0, msg, None)
+
+        scenes = self.parser.parse(
+            script,
+            target_scenes=target_scenes if target_scenes > 0 else None,
+            status_callback=_parse_status,
+        )
+
+        if not scenes:
+            logger.error("Pipeline aborted: No scenes parsed.")
+            return PipelineReport(run_folder=str(run_folder),
+                                  total_scenes=0, passed_scenes=0,
+                                  failed_scenes=[], overall_time=0.0)
+
+        # Persist parsed scenes to disk for redos (single block — Scene is a dataclass,
+        # so use dataclasses.asdict; Scene has no .to_dict(). Fixed 2026-06-06 after the
+        # test surfaced a redundant failing first-write.)
+        import dataclasses as _dc
+        scenes_file = run_folder / "scenes.json"
+        try:
+            with open(scenes_file, "w", encoding="utf-8") as f:
+                json.dump([_dc.asdict(s) for s in scenes], f, indent=2, ensure_ascii=False)
+            logger.info(f"Persisted {len(scenes)} parsed scenes to {scenes_file}")
+        except Exception as e:
+            logger.warning(f"Failed to persist scenes.json: {e}")
+        total_scenes = len(scenes)
+
+        # Count total visuals across all scenes for accurate progress
+        total_visuals = sum(len(sc.get_visuals()) for sc in scenes)
+        logger.info(f"Pipeline: {total_scenes} scenes, {total_visuals} total visuals to generate")
+
+        # Generate story bible — shared visual DNA for all scenes
+        if progress_callback:
+            progress_callback(0, 0, "Creating visual style bible...", None)
+
+        try:
+            story_bible = generate_story_bible(
+                script=script,
+                llm_gateway=self.llm_gateway,
+                art_style=style.art_style,
+                color_palette=style.color_palette,
+                mood_keywords=", ".join(style.mood_keywords) if style.mood_keywords else ""
+            )
+            self.story_bible = story_bible  # Persist for redo_scene()
+            
+            # Persist story bible to disk
+            bible_file = run_folder / "story_bible.json"
+            try:
+                with open(bible_file, "w", encoding="utf-8") as f:
+                    json.dump(story_bible, f, indent=2)
+            except Exception as e:
+                logger.warning(f"Failed to persist story_bible.json: {e}")
+                
+        except Exception as e:
+            logger.error(f"Story bible generation failed completely: {e}")
+            story_bible = {"characters": []}
+            self.story_bible = story_bible
+
+        # ── Merge Brand Bible visual DNA into story_bible (if provided) ──
+        if brand_bible_data:
+            if progress_callback:
+                progress_callback(0, 0, "🧬 Merging Brand DNA into visual style...", None)
+            from .brand_bible import merge_brand_into_story_bible
+            story_bible = merge_brand_into_story_bible(story_bible, brand_bible_data)
+            self.story_bible = story_bible
+            brand_name = brand_bible_data.get('brand_name', 'Brand')
+            logger.info(f"Brand Bible merged: {brand_name} visual DNA injected into story bible")
+
+            # Store reference images for image-to-image generation
+            ref_paths = brand_bible_data.get('reference_image_paths', [])
+            if ref_paths:
+                self.reference_images = ref_paths
+                logger.info(f"Reference images loaded: {len(ref_paths)} images for img2img")
+            else:
+                self.reference_images = []
+        else:
+            self.reference_images = []
+
+        # Brief script summary for narrative context
+        script_summary = script[:500] + "..." if len(script) > 500 else script
+
+        # Step 2-4: Process each scene
+        scene_results: List[SceneResult] = []
+        budget_stopped = False
+
+        # Precompute each scene's visual offset (cumulative) so progress stays
+        # correct even when scenes run concurrently.
+        offsets, _acc = [], 0
+        for sc in scenes:
+            offsets.append(_acc)
+            _acc += len(sc.get_visuals())
+
+        def _run_scene(i: int, scene: Scene):
+            return i, self._process_scene(
+                scene=scene,
+                prompt_builder=prompt_builder,
+                images_folder=images_folder,
+                style_description=f"{style.art_style} {style.color_palette}",
+                progress_callback=progress_callback,
+                total_scenes=total_scenes,
+                total_visuals=total_visuals,
+                visual_offset=offsets[i],
+                full_script_summary=script_summary,
+                story_bible=story_bible,
+            )
+
+        if self.parallel_scenes > 1 and total_scenes > 1:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            logger.info(f"Processing {total_scenes} scenes with {self.parallel_scenes} workers")
+            by_idx: Dict[int, SceneResult] = {}
+            with ThreadPoolExecutor(max_workers=self.parallel_scenes,
+                                    thread_name_prefix="psim-scene") as ex:
+                futures = [ex.submit(_run_scene, i, sc) for i, sc in enumerate(scenes)]
+                try:
+                    for fut in as_completed(futures):
+                        idx, result = fut.result()
+                        by_idx[idx] = result
+                except BudgetExceeded as be:
+                    budget_stopped = True
+                    logger.warning(f"⛔ {be} — cancelling remaining scenes")
+                    for f in futures:
+                        f.cancel()
+            scene_results = [by_idx[i] for i in sorted(by_idx)]
+        else:
+            for i, scene in enumerate(scenes):
+                try:
+                    _, result = _run_scene(i, scene)
+                except BudgetExceeded as be:
+                    budget_stopped = True
+                    logger.warning(f"⛔ {be} — stopping before remaining scenes")
+                    if progress_callback:
+                        progress_callback(offsets[i], total_visuals,
+                                          f"⛔ Budget ${self._budget.ceiling:.2f} reached — stopped early",
+                                          None)
+                    break
+                scene_results.append(result)
+
+        if budget_stopped:
+            logger.warning(f"Run halted by budget ceiling after {len(scene_results)}/{total_scenes} scenes")
+
+        total_images = sum(
+            (sum(vr.attempts for vr in r.visual_results) if r.visual_results else r.attempts)
+            for r in scene_results
+        )
+        total_critiques = total_images
+
+        # Step 5: Generate report
+        passed = sum(1 for r in scene_results if r.passed)
+        failed = total_scenes - passed
+        avg_score = sum(r.final_score for r in scene_results) / total_scenes if total_scenes else 0
+
+        report = PipelineReport(
+            timestamp=timestamp,
+            total_scenes=total_scenes,
+            passed_scenes=passed,
+            failed_scenes=failed,
+            total_images_generated=total_images,
+            total_critiques=total_critiques,
+            average_final_score=round(avg_score, 1),
+            results=[r.to_dict() for r in scene_results],
+            style_preset=style.name,
+            duration_seconds=round(time.time() - start_time, 1),
+            total_visuals=total_visuals,
+            run_id=run_id,
+            total_cost_usd=round(usage_totals["usd"], 4),
+            total_input_tokens=usage_totals["in"],
+            total_output_tokens=usage_totals["out"],
+            llm_calls_count=usage_totals["calls"],
+            image_provider_name=self.image_provider.name() if hasattr(self.image_provider, "name") else "",
+        )
+
+        # Save report
+        report_path = run_folder / "qc_report.json"
+        with open(report_path, "w", encoding="utf-8") as f:
+            json.dump(report.to_dict(), f, indent=2, ensure_ascii=False)
+
+        logger.info(f"Pipeline complete: {passed}/{total_scenes} passed | "
+                     f"avg score: {avg_score:.1f}/10 | "
+                     f"{total_visuals} visuals | "
+                     f"duration: {report.duration_seconds}s")
+
+        if progress_callback:
+            progress_callback(total_visuals, total_visuals,
+                              f"Done! {passed}/{total_scenes} scenes passed.", None)
+
+        return report
+
+    def _process_scene(self, scene: Scene, prompt_builder: PromptBuilder,
+                       images_folder: Path, style_description: str,
+                       progress_callback=None, total_scenes: int = 0,
+                       total_visuals: int = 0, visual_offset: int = 0,
+                       full_script_summary: str = "",
+                       story_bible: dict = None) -> SceneResult:
+        """Process a single scene — generates all its visuals through the QC loop."""
+        result = SceneResult(
+            scene_number=scene.scene_number,
+            scene_title=scene.scene_title
+        )
+
+        visuals = scene.get_visuals()
+        multi_shot = len(visuals) > 1
+
+        all_visual_results: List[VisualResult] = []
+
+        for v_idx, visual in enumerate(visuals):
+            sub_label = _VISUAL_LABELS[v_idx] if multi_shot else ""
+            vr = self._process_visual(
+                visual=visual,
+                scene=scene,
+                sub_label=sub_label,
+                prompt_builder=prompt_builder,
+                images_folder=images_folder,
+                style_description=style_description,
+                progress_callback=progress_callback,
+                total_scenes=total_scenes,
+                total_visuals=total_visuals,
+                visual_global_idx=visual_offset + v_idx,
+                full_script_summary=full_script_summary,
+                story_bible=story_bible,
+            )
+            all_visual_results.append(vr)
+
+        result.visual_results = all_visual_results
+
+        # Aggregate: scene passes if ALL its visuals pass (or best effort)
+        scores = [vr.final_score for vr in all_visual_results if vr.final_score > 0]
+        result.final_score = round(sum(scores) / len(scores), 1) if scores else 0.0
+        result.passed = all(vr.passed for vr in all_visual_results)
+        result.attempts = sum(vr.attempts for vr in all_visual_results)
+
+        # Legacy single-image fields = the key_visual (or first visual)
+        key_vr = next((vr for vr in all_visual_results if vr.visual_type == "key_visual"),
+                       all_visual_results[0] if all_visual_results else None)
+        if key_vr:
+            result.final_image_path = key_vr.final_image_path
+            result.final_prompt = key_vr.final_prompt
+
+        # Flatten history from all visuals
+        for vr in all_visual_results:
+            for h in vr.history:
+                h["visual_type"] = vr.visual_type
+            result.history.extend(vr.history)
+
+        if progress_callback:
+            status_icon = "✅" if result.passed else "⚠️"
+            progress_callback(visual_offset + len(visuals), total_visuals,
+                              f"{status_icon} Scene {scene.scene_number} — {result.final_score}/10",
+                              result.final_image_path)
+
+        return result
+
+    # _API_COOLDOWN defined at class level (1.5s)
+
+    def _generate_with_retry(self, prompt: str, negative_prompt: str,
+                              output_path: str, provider=None,
+                              max_gen_retries: int = 2) -> bool:
+        """Generate image with automatic retry on rate-limit / transient errors.
+
+        `provider` is passed explicitly (not read from self) so the QC loop is
+        reentrant under parallel scenes.
+        """
+        provider = provider or self.image_provider
+        for gen_try in range(max_gen_retries):
+            try:
+                provider.generate(
+                    prompt=prompt,
+                    negative_prompt=negative_prompt,
+                    output_path=output_path,
+                    reference_images=getattr(self, 'reference_images', None) or None,
+                )
+                return True
+            except Exception as e:
+                err_str = str(e).lower()
+                is_rate_limit = any(k in err_str for k in ("429", "rate", "quota", "too many"))
+                if is_rate_limit and gen_try < max_gen_retries - 1:
+                    wait = (gen_try + 1) * 10  # 10s, 20s backoff
+                    logger.warning(f"Rate limited — waiting {wait}s before retry")
+                    time.sleep(wait)
+                    continue
+                raise  # non-rate-limit error or final retry → bubble up
+
+    def _process_visual(self, visual: Visual, scene: Scene, sub_label: str,
+                        prompt_builder: PromptBuilder, images_folder: Path,
+                        style_description: str, progress_callback=None,
+                        total_scenes: int = 0, total_visuals: int = 0,
+                        visual_global_idx: int = 0,
+                        full_script_summary: str = "",
+                        story_bible: dict = None) -> VisualResult:
+        """Process a single visual.
+
+        key_visual → full generate → critique → retry loop (QC enforced).
+        establishing / detail → generate once, auto-pass (no critique API call).
+        """
+        vr = VisualResult(visual_type=visual.visual_type)
+        vtype_label = visual.visual_type.replace("_", " ").title()
+        is_key = visual.visual_type == "key_visual"
+
+        # ── Fast path for supplementary shots (no critique) ──────────────
+        if not is_key:
+            if progress_callback:
+                progress_callback(visual_global_idx, total_visuals,
+                                  f"Scene {scene.scene_number}/{total_scenes} ({vtype_label})",
+                                  None)
+
+            prompt = prompt_builder.build_from_visual(visual, scene,
+                                                      story_bible=story_bible)
+            image_filename = f"{scene.scene_number:03d}{sub_label}_v1.png"
+            image_path = str(images_folder / image_filename)
+
+            self._check_budget()
+            try:
+                self._limiter.wait()
+                self._generate_with_retry(prompt, prompt_builder.last_negative or "",
+                                           image_path, provider=self._provider_chain[0])
+            except Exception as e:
+                logger.error(f"Generation failed for scene {scene.scene_number}{sub_label}: {e}")
+                vr.history.append({"attempt": 1, "prompt": prompt, "error": str(e)})
+                vr.attempts = 1
+                return vr
+            self._record_image(scene.scene_number)
+
+            # Auto-pass: supplementary shots don't need QC
+            vr.attempts = 1
+            vr.final_image_path = image_path
+            vr.final_prompt = prompt
+            vr.final_score = 7.5  # nominal pass score
+            vr.passed = True
+            vr.history.append({
+                "attempt": 1, "prompt": prompt, "image_path": image_path,
+                "scores": {}, "average_score": 7.5,
+                "passed": True, "feedback": "Supplementary shot — auto-accepted"
+            })
+
+            # Copy to _final
+            final_path = images_folder / f"{scene.scene_number:03d}{sub_label}_final.png"
+            shutil.copy2(image_path, final_path)
+            vr.final_image_path = str(final_path)
+
+            logger.info(f"Scene {scene.scene_number}{sub_label} ({vtype_label}) — generated (no QC)")
+            return vr
+
+        # ── Full QC path for key_visual ──────────────────────────────────
+        best_attempt = None
+        best_score = 0.0
+        last_critique = None
+
+        for attempt in range(1, self.max_retries + 1):
+            self._check_budget()
+            # ── Pick provider for this attempt (local var → reentrant) ─────
+            chain = self._provider_chain
+            provider = chain[(attempt - 1) % len(chain)]
+            if len(chain) > 1 and attempt > 1:
+                logger.info(f"🔄 Switching to {provider.name()} for attempt {attempt}")
+
+            if progress_callback:
+                shot_info = f" ({vtype_label})" if sub_label else ""
+                provider_tag = f" [{provider.name()}]" if len(chain) > 1 else ""
+                status = (f"Scene {scene.scene_number}/{total_scenes}{shot_info}"
+                          f" — Attempt {attempt}{provider_tag}")
+                progress_callback(visual_global_idx, total_visuals, status, None)
+
+            # Build prompt — first attempt gets clean prompt, retries get targeted surgery
+            if attempt == 1 or last_critique is None:
+                prompt = prompt_builder.build_from_visual(visual, scene,
+                                                          story_bible=story_bible)
+                negative_prompt = prompt_builder.last_negative or ""
+            else:
+                # v2.1: Typed error classification + targeted prompt surgery
+                base_prompt = prompt_builder.build_from_visual(visual, scene,
+                                                               story_bible=story_bible)
+                base_negative = prompt_builder.last_negative or ""
+                
+                # If safety filter tripped on last attempt, use LLM to scrub the prompt
+                is_safety_retry = any(h.get("safety_scrub_triggered") for h in vr.history if h["attempt"] == attempt - 1)
+                if is_safety_retry:
+                    logger.warning(f"Using LLM to scrub safety-violating terms from prompt for attempt {attempt}")
+                    scrub_instructions = (
+                        "Rewrite this image generation prompt to completely remove all copyrighted "
+                        "character names (e.g., Thanos, Gojo, Batman) and replace them with generic "
+                        "physical descriptions (e.g., 'large purple muscular alien', 'blindfolded white-haired man'). "
+                        "Also, tone down extreme violence or gore. Return ONLY the completely rewritten prompt.\n\n"
+                        f"PROMPT:\n{base_prompt}"
+                    )
+                    try:
+                        prompt = self.llm_gateway.generate_text(
+                            prompt=scrub_instructions,
+                            role="critic",
+                            temp=0.7
+                        )
+                        negative_prompt = base_negative
+                        logger.info("Successfully scrubbed prompt via LLM.")
+                    except Exception as e:
+                        logger.error(f"Failed to scrub prompt via LLM: {e}")
+                        prompt = base_prompt
+                        negative_prompt = base_negative
+                else:
+                    prompt, negative_prompt, typed_errors = process_feedback(
+                        critique_result=last_critique,
+                        prompt=base_prompt,
+                        negative_prompt=base_negative,
+                        llm_gateway=self.llm_gateway,
+                        story_bible=story_bible,
+                        style_description=style_description,
+                    )
+                    if typed_errors:
+                        error_summary = ", ".join(f"{e.type}({e.score})" for e in typed_errors)
+                        logger.info(f"🩺 Feedback Loop: {error_summary} → prompt surgery applied")
+
+            # Image filename with sub-label: 001a_v1.png or 001_v1.png
+            image_filename = f"{scene.scene_number:03d}{sub_label}_v{attempt}.png"
+            image_path = str(images_folder / image_filename)
+
+            try:
+                self._limiter.wait()
+                self._generate_with_retry(prompt, negative_prompt,
+                                           image_path, provider=provider)
+            except Exception as e:
+                logger.error(f"Generation failed for scene {scene.scene_number}{sub_label} "
+                             f"attempt {attempt} ({provider.name()}): {e}")
+
+                # If safety filter tripped, create a mock critique to force a prompt rewrite
+                if "safety-filtered" in str(e).lower() or "no content" in str(e).lower():
+                    from .art_director import CritiqueResult
+                    logger.warning(f"Safety filter tripped. Creating mock critique to scrub prompt on next attempt.")
+                    last_critique = CritiqueResult(
+                        scores={"relevance": 1, "concept": 1, "style": 1, "composition": 1, "artifact_free": 1, "text_accuracy": 1, "continuity": 1, "character_fidelity": 1},
+                        average_score=1.0,
+                        passed=False,
+                        feedback={
+                            "relevance": {"score": 1, "suggestion": "The prompt was blocked by the image generation safety filter. You MUST remove all mentions of copyrighted characters (e.g. Thanos, Gojo, Batman, etc.) and replace them with generic physical descriptions (e.g. purple alien warrior, white-haired blindfolded man). You MUST ALSO tone down any extreme violence, explosions, blood, or gore."},
+                            "concept": {"score": 1, "suggestion": "Use generic, non-copyrighted descriptive language to bypass safety filters."},
+                            "style": {"score": 1, "suggestion": ""},
+                            "composition": {"score": 1, "suggestion": ""},
+                            "artifact_free": {"score": 1, "suggestion": ""},
+                            "text_accuracy": {"score": 1, "suggestion": ""},
+                            "continuity": {"score": 1, "suggestion": ""},
+                            "character_fidelity": {"score": 1, "suggestion": "Remove ALL copyrighted character names! Replace with highly generic visual descriptions."}
+                        },
+                        summary="Prompt was blocked by safety filters. Generating scrubbed prompt.",
+                        raw_response=""
+                    )
+                    vr.history.append({
+                        "attempt": attempt,
+                        "prompt": prompt,
+                        "image_path": None,
+                        "scores": last_critique.scores,
+                        "average_score": last_critique.average_score,
+                        "passed": last_critique.passed,
+                        "feedback": last_critique.summary,
+                        "detailed_feedback": last_critique.feedback,
+                        "provider": provider.name(),
+                        "typed_errors": [{"type": "SafetyFilterBlock", "severity": "critical", "score": 1, "dimension": "relevance"}],
+                        "safety_scrub_triggered": True,
+                        "raw_error": str(e)
+                    })
+                    continue
+
+                vr.history.append({
+                    "attempt": attempt,
+                    "prompt": prompt,
+                    "error": str(e),
+                    "provider": provider.name()
+                })
+                continue
+
+            # Image generated successfully — record its cost (audit P0 line item:
+            # image spend was previously never counted in total_cost_usd).
+            self._record_image(scene.scene_number)
+
+            # Critique image (rate-limit cooldown)
+            self._limiter.wait()
+            try:
+                last_critique = self.art_director.critique(
+                    image_path=image_path,
+                    scene_title=scene.scene_title,
+                    scene_description=visual.visual_description,
+                    mood=visual.mood or scene.mood,
+                    key_elements=visual.key_elements or scene.key_elements,
+                    style_description=style_description,
+                    original_text=scene.original_text,
+                    full_script_summary=full_script_summary,
+                    scene_number=scene.scene_number,
+                    total_scenes=total_scenes,
+                    story_bible=story_bible,
+                )
+            except Exception as e:
+                logger.error(f"Critique failed for scene {scene.scene_number}{sub_label}: {e}")
+
+                # ── v2.2: CRITIQUE RETRY — re-call the critic, don't regenerate image ──
+                _retry_quips = [
+                    "🎭 Art Director spilled coffee on the review — re-reading…",
+                    "🔄 Brain glitch! The critic is recalibrating…",
+                    "🧹 Sweeping up broken JSON… one sec…",
+                    "🎬 CUT! Take two on the review…",
+                    "🪄 Summoning a fresh pair of AI eyes…",
+                ]
+                critique_recovered = False
+                for crit_retry in range(1, 3):  # max 2 critique retries
+                    backoff = 5 * crit_retry
+                    logger.info(f"{random.choice(_retry_quips)} "
+                                f"(critique retry {crit_retry}/2, backoff {backoff}s)")
+                    time.sleep(backoff)
+                    try:
+                        last_critique = self.art_director.critique(
+                            image_path=image_path,
+                            scene_title=scene.scene_title,
+                            scene_description=visual.visual_description,
+                            mood=visual.mood or scene.mood,
+                            key_elements=visual.key_elements or scene.key_elements,
+                            style_description=style_description,
+                            original_text=scene.original_text,
+                            full_script_summary=full_script_summary,
+                            scene_number=scene.scene_number,
+                            total_scenes=total_scenes,
+                            story_bible=story_bible,
+                        )
+                        critique_recovered = True
+                        logger.info(f"✅ Critique recovered on retry {crit_retry}!")
+                        break
+                    except Exception as e2:
+                        logger.warning(f"Critique retry {crit_retry} also failed: {e2}")
+
+                if not critique_recovered:
+                    # All critique retries failed — log ghost failure and move on
+                    vr.history.append({
+                        "attempt": attempt, "prompt": prompt, "image_path": image_path,
+                        "scores": {}, "average_score": 0.0,
+                        "passed": False, "feedback": f"Critique error (3 attempts): {e}",
+                        "critique_error": True,
+                        "provider": provider.name()
+                    })
+                    vr.attempts = attempt
+                    if best_attempt is None:
+                        best_score = 0.0
+                        best_attempt = {"path": image_path, "prompt": prompt,
+                                        "score": 0.0, "passed": False}
+                    continue  # Fall through to image regeneration only after all retries
+
+                # Critique recovered — fall through to normal score tracking below
+
+            # Track attempt
+            # Classify errors for QC report (v2.1)
+            classifier = FeedbackClassifier()
+            attempt_errors = classifier.classify(last_critique)
+            error_types = [{"type": e.type, "severity": e.severity, "score": e.score,
+                           "dimension": e.dimension} for e in attempt_errors]
+
+            vr.history.append({
+                "attempt": attempt,
+                "prompt": prompt,
+                "image_path": image_path,
+                "scores": last_critique.scores,
+                "average_score": last_critique.average_score,
+                "passed": last_critique.passed,
+                "feedback": last_critique.summary,
+                "provider": provider.name(),
+                "typed_errors": error_types,  # v2.1: classified error types
+            })
+            vr.attempts = attempt
+
+            # Track best
+            if last_critique.average_score > best_score:
+                best_score = last_critique.average_score
+                best_attempt = {
+                    "path": image_path,
+                    "prompt": prompt,
+                    "score": last_critique.average_score,
+                    "passed": last_critique.passed
+                }
+
+            # Check if passed
+            if last_critique.passed:
+                logger.info(f"Scene {scene.scene_number}{sub_label} passed on attempt {attempt}")
+                break
+            elif not self.art_director.should_retry(last_critique, attempt):
+                logger.warning(f"Scene {scene.scene_number}{sub_label} did not pass "
+                               f"after {attempt} attempts")
+                break
+
+        # Use best attempt as final
+        if best_attempt:
+            vr.final_image_path = best_attempt["path"]
+            vr.final_prompt = best_attempt["prompt"]
+            vr.final_score = best_attempt["score"]
+            vr.passed = best_attempt["passed"]
+
+            # Copy best to final numbered filename
+            final_name = f"{scene.scene_number:03d}{sub_label}_final.png"
+            final_path = images_folder / final_name
+            if Path(best_attempt["path"]).exists():
+                shutil.copy2(best_attempt["path"], final_path)
+                vr.final_image_path = str(final_path)
+
+        return vr
+
+    def redo_scene(self, scene_number: int, scenes: List[Scene],
+                   style_preset_path: str, guidance: str = None,
+                   run_folder: str = None,
+                   progress_callback=None) -> SceneResult:
+        """Redo a single scene with optional manual guidance (for UI redo button).
+
+        Args:
+            scene_number: Which scene to redo (1-indexed)
+            scenes: Full scenes list from parsing
+            style_preset_path: Path to style preset
+            guidance: Optional manual text guidance from user
+            run_folder: Path to existing run folder
+            progress_callback: Optional callable(current, total, status, image_path)
+
+        Returns:
+            Updated SceneResult
+        """
+        # Attempt to load scenes from disk if not provided
+        if not scenes and run_folder:
+            scenes_file = Path(run_folder) / "scenes.json"
+            if scenes_file.exists():
+                try:
+                    with open(scenes_file, "r", encoding="utf-8") as f:
+                        scenes_data = json.load(f)
+                        from .scene_parser import Scene
+                        scenes = [Scene(**sd) for sd in scenes_data]
+                    logger.info(f"Loaded {len(scenes)} scenes from {scenes_file}")
+                except Exception as e:
+                    logger.error(f"Failed to load scenes.json from {run_folder}: {e}")
+            else:
+                raise ValueError("No scenes provided and scenes.json not found in run folder.")
+        elif not scenes:
+             raise ValueError("No scenes provided and no run folder specified.")
+
+        # Deepcopy to prevent mutating the shared scene list
+        scene = copy.deepcopy(scenes[scene_number - 1])
+
+        # If user provided guidance, inject it into the copied scene
+        if guidance:
+            scene.visual_description += f" ADDITIONAL DIRECTION: {guidance}"
+            for v in scene.get_visuals():
+                v.visual_description += f" ADDITIONAL DIRECTION: {guidance}"
+
+        style = StylePreset(style_preset_path)
+        prompt_builder = PromptBuilder(style)
+        style_desc = f"{style.art_style} {style.color_palette}"
+
+        if run_folder:
+            images_folder = Path(run_folder) / "images"
+        else:
+            images_folder = self.output_folder / "redo"
+
+        images_folder.mkdir(parents=True, exist_ok=True)
+
+        total_visuals = len(scene.get_visuals())
+
+        # Use the persisted story bible from the last run() call or load from disk
+        story_bible = getattr(self, 'story_bible', None)
+        if not story_bible and run_folder:
+             bible_file = Path(run_folder) / "story_bible.json"
+             if bible_file.exists():
+                 try:
+                     with open(bible_file, "r", encoding="utf-8") as f:
+                         story_bible = json.load(f)
+                     logger.info(f"Loaded story bible from {bible_file}")
+                 except Exception as e:
+                     logger.error(f"Failed to load story_bible.json from {run_folder}: {e}")
+                     story_bible = {}
+        
+        story_bible = story_bible or {}
+
+        return self._process_scene(
+            scene=scene,
+            prompt_builder=prompt_builder,
+            images_folder=images_folder,
+            style_description=style_desc,
+            progress_callback=progress_callback,
+            total_scenes=len(scenes),
+            total_visuals=total_visuals,
+            story_bible=story_bible,
+        )

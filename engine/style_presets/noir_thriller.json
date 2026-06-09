@@ -1,0 +1,15 @@
+{
+    "name": "Noir Thriller",
+    "description": "Hard-boiled detective noir — Blade Runner meets Se7en, rain-slicked streets",
+    "art_style": "Neo-noir cinematic digital art. High contrast chiaroscuro, wet reflective surfaces, rain-soaked urban environments. Neon signs bleeding through fog. Silhouettes against backlit windows. Think Blade Runner 2049 meets Sin City.",
+    "color_palette": "Near-monochrome with selective color pops — electric neon cyan, hot pink, acid yellow bleeding through deep blacks and charcoal greys. Chromatic aberration on edges.",
+    "mood_keywords": [
+        "mysterious",
+        "tense",
+        "gritty",
+        "haunting",
+        "atmospheric"
+    ],
+    "quality_tags": "Ultra cinematic, noir lighting, anamorphic lens flare, rain particles, wet surface reflections, volumetric fog, dramatic shadows, ultra-detailed environments.",
+    "negative_prompt": "bright daylight, cheerful, cartoon, anime, flat lighting, pastel colors, clean sterile environments, generic, blurry, low quality, AI artifacts, extra fingers, malformed hands, distorted faces, text overlays, watermarks."
+}

@@ -1,0 +1,17 @@
+{
+    "name": "Ad Scene",
+    "description": "Story-driven, cinematic visual sequence style. Perfect for video storyboards, commercial pitches, or multi-frame ad campaigns.",
+    "art_style": "Cinematic commercial storyboarding. This image represents a single frame from a high-budget video commercial. The lighting is cinematic, shaping the scene and characters to tell a story. Action is frozen mid-moment, implying motion and narrative progression. Depth of field is used to guide the viewer's eye to the key narrative subject or product. The environment feels lived-in and real, providing context to the brand's usage.",
+    "color_palette": "Cinematic color grading (e.g., teal and orange, atmospheric, or brand-specific grading). Highly dependent on the script's mood but generally features rich cinematic contrast.",
+    "mood_keywords": [
+        "cinematic",
+        "narrative",
+        "story-driven",
+        "action",
+        "commercial",
+        "evocative",
+        "dynamic"
+    ],
+    "quality_tags": "Cinematic frame, movie still, high-budget commercial, Arri Alexa 65, anamorphic lens, cinematic lighting, dramatic shadows, narrative composition, depth of field, storytelling, photorealistic.",
+    "negative_prompt": "flat layout, product isolated on white, boring, static, no story, amateur video, poorly lit, low contrast, text, letters, watermarks, 3d render, cartoon, malformed faces, distorted anatomy."
+}

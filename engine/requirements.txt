@@ -1,0 +1,15 @@
+# Core pipeline
+streamlit>=1.53.0
+openai>=2.0.0
+google-genai>=1.60.0
+Pillow>=11.0.0
+python-dotenv>=1.0.0
+json-repair>=0.58.0
+
+# Image providers (imported lazily inside modules/image_provider.py — must be
+# declared or Imagen 3 / DALL-E / Seedream raise ImportError at run time, not
+# install time). `vertexai` is NOT a separate PyPI package: its namespace ships
+# inside google-cloud-aiplatform, so that is the dependency to pin.
+requests>=2.32.0
+google-cloud-aiplatform>=1.130.0
+google-auth>=2.40.0

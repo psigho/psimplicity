@@ -1,0 +1,15 @@
+{
+    "name": "Cinematic Documentary",
+    "description": "Natural-light documentary cinematography — Ken Burns meets Planet Earth",
+    "art_style": "Photojournalistic documentary cinematography, natural lighting with golden hour warmth, shallow depth of field, handheld intimacy meets epic wide establishing shots. Think National Geographic meets A24 indie films.",
+    "color_palette": "Desaturated naturals, warm golden tones, cool steel blues for contrast, earthy greens and browns, soft film grain overlay.",
+    "mood_keywords": [
+        "authentic",
+        "raw",
+        "intimate",
+        "epic",
+        "grounded"
+    ],
+    "quality_tags": "35mm film aesthetic, shallow depth of field, natural lighting, photojournalistic composition, documentary realism, cinematic aspect ratio.",
+    "negative_prompt": "cartoon, anime, oversaturated, HDR look, artificial lighting, studio backdrop, stock photo, generic, plastic skin, AI artifacts, extra fingers, malformed hands, distorted faces, text overlays, watermarks."
+}
